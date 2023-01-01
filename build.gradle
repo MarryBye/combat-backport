@@ -24,6 +24,7 @@ import java.util.zip.ZipOutputStream
 
 buildscript {
     repositories {
+        mavenLocal()
         mavenCentral()
 
         maven {
@@ -31,9 +32,10 @@ buildscript {
             url 'https://maven.minecraftforge.net'
         }
         maven {
-            // GTNH ForgeGradle and ASM Fork
-            name = "GTNH Maven"
-            url = "http://jenkins.usrv.eu:8081/nexus/content/groups/public/"
+            // GTNH RetroFuturaGradle and ASM Fork
+            name "GTNH Maven"
+            url "http://jenkins.usrv.eu:8081/nexus/content/groups/public/"
+            allowInsecureProtocol = true
         }
         maven {
             name 'sonatype'
@@ -45,9 +47,7 @@ buildscript {
         }
     }
     dependencies {
-        //Overwrite the current ASM version to fix shading newer than java 8 applicatations.
-        classpath 'org.ow2.asm:asm-debug-all-custom:5.0.3'  
-        classpath 'net.minecraftforge.gradle:ForgeGradle:1.2.13'
+        classpath 'com.gtnewhorizons:retrofuturagradle:1.0.0'
     }
 }
 plugins {
@@ -85,14 +85,16 @@ if (project.file('.git/HEAD').isFile()) {
 
 def out = services.get(StyledTextOutputFactory).create('an-output')
 
-apply plugin: 'forge'
+apply plugin: 'com.gtnewhorizons.retrofuturagradle'
 
 def projectJavaVersion = JavaLanguageVersion.of(8)
 
 java {
     toolchain {
         languageVersion.set(projectJavaVersion)
+        vendor.set(JvmVendorSpec.ADOPTIUM)
     }
+    withSourcesJar()
 }
 
 idea {
@@ -108,10 +110,6 @@ boolean disableSpotless = project.hasProperty("disableSpotless") ? project.disab
 if (!disableSpotless) {
     apply plugin: 'com.diffplug.spotless'
     apply from: Blowdryer.file('spotless.gradle')
-}
-
-if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
-    throw new GradleException("This project requires Java 8, but it's running on " + JavaVersion.current())
 }
 
 checkPropertyExists("modName")
@@ -259,56 +257,35 @@ if (project.hasProperty("customArchiveBaseName") && customArchiveBaseName) {
     archivesBaseName = modId
 }
 
-def arguments = []
-def jvmArguments = []
-
-if (usesMixins.toBoolean() || forceEnableMixins.toBoolean()) {
-    arguments += [
-        "--tweakClass org.spongepowered.asm.launch.MixinTweaker"
-    ]
-    if (usesMixinDebug.toBoolean()) {
-        jvmArguments += [
-            "-Dmixin.debug.countInjections=true",
-            "-Dmixin.debug.verbose=true",
-            "-Dmixin.debug.export=true"
-        ]
-    }
-}
-
 minecraft {
-    version = minecraftVersion + '-' + forgeVersion + '-' + minecraftVersion
-    runDir = 'run'
-
     if (replaceGradleTokenInFile) {
         for (f in replaceGradleTokenInFile.split(',')) {
-            replaceIn f
+            tokenSubstituteSources.from f
         }
         if (gradleTokenModId) {
-            replace gradleTokenModId, modId
+            injectedTags.put gradleTokenModId, modId
         }
         if (gradleTokenModName) {
-            replace gradleTokenModName, modName
+            injectedTags.put gradleTokenModName, modName
         }
         if (gradleTokenVersion) {
-            replace gradleTokenVersion, modVersion
+            injectedTags.put gradleTokenVersion, modVersion
         }
         if (gradleTokenGroupName) {
-            replace gradleTokenGroupName, modGroup
+            injectedTags.put gradleTokenGroupName, modGroup
         }
     }
 
-    clientIntellijRun {
-        args(arguments)
-        jvmArgs(jvmArguments)
+    if (usesMixins.toBoolean() || forceEnableMixins.toBoolean()) {
+        extraTweakClasses.add "--tweakClass org.spongepowered.asm.launch.MixinTweaker"
 
-        if (developmentEnvironmentUserName) {
-            args("--username", developmentEnvironmentUserName)
+        if (usesMixinDebug.toBoolean()) {
+            extraRunJvmArguments.addAll [
+                "-Dmixin.debug.countInjections=true",
+                "-Dmixin.debug.verbose=true",
+                "-Dmixin.debug.export=true"
+            ]
         }
-    }
-
-    serverIntellijRun {
-        args(arguments)
-        jvmArgs(jvmArguments)
     }
 }
 
@@ -362,7 +339,7 @@ apply from: 'dependencies.gradle'
 
 def mixingConfigRefMap = 'mixins.' + modId + '.refmap.json'
 def refMap = "${tasks.compileJava.temporaryDir}" + File.separator + mixingConfigRefMap
-def mixinSrg = "${tasks.reobf.temporaryDir}" + File.separator + "mixins.srg"
+def mixinSrg = "${tasks.reobfJar.temporaryDir}" + File.separator + "mixins.srg"
 
 task generateAssets {
     if (usesMixins.toBoolean()) {
@@ -431,9 +408,9 @@ jar {
     }
 }
 
-reobf {
+reobfJar {
     if (usesMixins.toBoolean()) {
-        addExtraSrgFile mixinSrg
+        extraSrgFiles += mixinSrg
     }
 }
 
@@ -441,7 +418,7 @@ afterEvaluate {
     if (usesMixins.toBoolean()) {
         tasks.compileJava {
             options.compilerArgs += [
-                "-AreobfSrgFile=${tasks.reobf.srg}",
+                "-AreobfSrgFile=${tasks.reobfJar.srg}",
                 "-AoutSrgFile=${mixinSrg}",
                 "-AoutRefMapFile=${refMap}",
                 // Elan: from what I understand they are just some linter configs so you get some warning on how to properly code
@@ -452,35 +429,10 @@ afterEvaluate {
     }
 }
 
-runClient {
-    if (developmentEnvironmentUserName) {
-        arguments += [
-            "--username",
-            developmentEnvironmentUserName
-        ]
-    }
-
-    args(arguments)
-    jvmArgs(jvmArguments)
-}
-
-runServer {
-    args(arguments)
-    jvmArgs(jvmArguments)
-}
-
-tasks.withType(JavaExec).configureEach {
-    javaLauncher.set(
-        javaToolchains.launcherFor {
-            languageVersion = projectJavaVersion
-        }
-    )
-}
-
 processResources {
     // this will ensure that this task is redone when the versions change.
     inputs.property "version", project.version
-    inputs.property "mcversion", project.minecraft.version
+    inputs.property "mcversion", project.minecraft.mcVersion
     exclude("spotless.gradle")
 
     // replace stuff in mcmod.info, nothing else
@@ -488,7 +440,7 @@ processResources {
         include 'mcmod.info'
 
         // replace modVersion and minecraftVersion
-        expand "minecraftVersion": project.minecraft.version,
+        expand "minecraftVersion": project.minecraft.mcVersion,
             "modVersion": modVersion,
             "modId": modId,
             "modName": modName
@@ -527,12 +479,6 @@ def getManifestAttributes() {
         ]
     }
     return manifestAttributes
-}
-
-task sourcesJar(type: Jar) {
-    from(sourceSets.main.allSource)
-    from(file("$projectDir/LICENSE"))
-    getArchiveClassifier().set('sources')
 }
 
 task shadowDevJar(type: ShadowJar) {
@@ -611,12 +557,6 @@ artifacts {
     if (apiPackage) {
         archives apiJar
     }
-}
-
-// The gradle metadata includes all of the additional deps that we disabled from POM generation (including forgeBin with no groupID),
-// and isn't strictly needed with the POM so just disable it.
-tasks.withType(GenerateModuleMetadata) {
-    enabled = false
 }
 
 // workaround variable hiding in pom processing
