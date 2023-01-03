@@ -253,7 +253,7 @@ if (project.hasProperty("customArchiveBaseName") && customArchiveBaseName) {
 minecraft {
     if (replaceGradleTokenInFile) {
         for (f in replaceGradleTokenInFile.split(',')) {
-            tokenSubstituteSources.from f
+            tagReplacementFiles.add f
         }
         if (gradleTokenModId) {
             injectedTags.put gradleTokenModId, modId
@@ -299,11 +299,12 @@ repositories {
         name 'Overmind forge repo mirror'
         url 'https://gregtech.overminddl1.com/'
     }
+    maven {
+        name = "GTNH Maven"
+        url = "http://jenkins.usrv.eu:8081/nexus/content/groups/public/"
+        allowInsecureProtocol = true
+    }
     if (usesMixins.toBoolean() || forceEnableMixins.toBoolean()) {
-        maven {
-            name = "GTNH Maven"
-            url = "http://jenkins.usrv.eu:8081/nexus/content/groups/public/"
-        }
         if (usesMixinDebug.toBoolean()) {
             maven {
                 name = "Fabric Maven"
