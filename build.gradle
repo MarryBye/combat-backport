@@ -66,7 +66,7 @@ plugins {
     id 'com.diffplug.spotless' version '6.7.2' apply false
     id 'com.modrinth.minotaur' version '2.+' apply false
     id 'com.matthewprenger.cursegradle' version '1.4.0' apply false
-    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.2'
+    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.3'
 }
 boolean settingsupdated = verifySettingsGradle()
 settingsupdated = verifyGitAttributes() || settingsupdated
@@ -82,22 +82,6 @@ def out = services.get(StyledTextOutputFactory).create('an-output')
 apply plugin: 'com.gtnewhorizons.retrofuturagradle'
 
 def projectJavaVersion = JavaLanguageVersion.of(8)
-
-java {
-    toolchain {
-        languageVersion.set(projectJavaVersion)
-        vendor.set(JvmVendorSpec.ADOPTIUM)
-    }
-    withSourcesJar()
-}
-
-idea {
-    module {
-        inheritOutputDirs = true
-        downloadJavadoc = true
-        downloadSources = true
-    }
-}
 
 boolean disableSpotless = project.hasProperty("disableSpotless") ? project.disableSpotless.toBoolean() : false
 
@@ -141,6 +125,23 @@ String javaSourceDir = "src/main/java/"
 String scalaSourceDir = "src/main/scala/"
 String kotlinSourceDir = "src/main/kotlin/"
 
+java {
+    toolchain {
+        languageVersion.set(projectJavaVersion)
+        vendor.set(JvmVendorSpec.ADOPTIUM)
+    }
+    if (!noPublishedSources) {
+        withSourcesJar()
+    }
+}
+
+idea {
+    module {
+        inheritOutputDirs = true
+        downloadJavadoc = true
+        downloadSources = true
+    }
+}
 
 final String modGroupPath = modGroup.toString().replace('.' as char, '/' as char)
 final String apiPackagePath = apiPackage.toString().replace('.' as char, '/' as char)
@@ -300,6 +301,9 @@ repositories {
     maven {
         name 'Overmind forge repo mirror'
         url 'https://gregtech.overminddl1.com/'
+        mavenContent {
+            excludeGroup("net.minecraftforge") // missing the `universal` artefact
+        }
     }
     maven {
         name = "GTNH Maven"
@@ -373,23 +377,27 @@ tasks.register('relocateShadowJar', ConfigureShadowRelocation) {
 }
 
 tasks.named("shadowJar", ShadowJar).configure {
-    project.configurations.shadeCompile.each { dep ->
-        from(project.zipTree(dep)) {
-            exclude 'META-INF', 'META-INF/**'
+    if (usesShadowedDependencies.toBoolean()) {
+        project.configurations.shadeCompile.each { dep ->
+            from(project.zipTree(dep)) {
+                exclude 'META-INF', 'META-INF/**'
+            }
         }
-    }
 
-    manifest {
-        attributes(getManifestAttributes())
-    }
+        manifest {
+            attributes(getManifestAttributes())
+        }
 
-    minimize()  // This will only allow shading for actually used classes
-    configurations = [
-        project.configurations.shadowImplementation,
-        project.configurations.shadowCompile
-    ]
-    archiveClassifier.set('dev')
-    dependsOn(relocateShadowJar)
+        minimize()  // This will only allow shading for actually used classes
+        configurations = [
+            project.configurations.shadowImplementation,
+            project.configurations.shadowCompile
+        ]
+        archiveClassifier.set('dev')
+        dependsOn(relocateShadowJar)
+    } else {
+        enabled = false
+    }
 }
 
 tasks.named("jar", Jar).configure {
@@ -474,30 +482,32 @@ def getManifestAttributes() {
     return manifestAttributes
 }
 
-tasks.register('shadowReobfJar', ShadowJar) {
-    project.configurations.shadeCompile.each { dep ->
-        from(project.zipTree(dep)) {
-            exclude 'META-INF', 'META-INF/**'
+if (usesShadowedDependencies.toBoolean()) {
+    tasks.register('shadowReobfJar', ShadowJar) {
+        project.configurations.shadeCompile.each { dep ->
+            from(project.zipTree(dep)) {
+                exclude 'META-INF', 'META-INF/**'
+            }
         }
+
+        from tasks.reobfJar
+        getArchiveClassifier().set("")
+
+        manifest {
+            attributes(getManifestAttributes())
+        }
+
+        minimize()  // This will only allow shading for actually used classes
+        configurations = [
+            project.configurations.shadowImplementation,
+            project.configurations.shadowCompile
+        ]
     }
 
-    from tasks.reobfJar
-    getArchiveClassifier().set("")
-
-    manifest {
-        attributes(getManifestAttributes())
+    tasks.register('relocateShadowReobfJar', ConfigureShadowRelocation) {
+        target = tasks.shadowReobfJar
+        prefix = modGroup + ".shadow"
     }
-
-    minimize()  // This will only allow shading for actually used classes
-    configurations = [
-        project.configurations.shadowImplementation,
-        project.configurations.shadowCompile
-    ]
-}
-
-tasks.register('relocateShadowReobfJar', ConfigureShadowRelocation) {
-    target = tasks.shadowReobfJar
-    prefix = modGroup + ".shadow"
 }
 
 tasks.register('apiJar', Jar) {
@@ -532,16 +542,17 @@ publishing {
     publications {
         create("maven", MavenPublication) {
             if (usesShadowedDependencies.toBoolean()) {
-                artifact source: shadowReobfJar
+                artifact shadowReobfJar
+                artifact shadowJar
             } else {
-                from components.java
+                artifact reobfJar
+                artifact jar
             }
             if (!noPublishedSources) {
-                artifact source: sourcesJar
+                artifact sourcesJar
             }
-            artifact source: usesShadowedDependencies.toBoolean() ? shadowJar : jar
             if (apiPackage) {
-                artifact source: apiJar, classifier: "api"
+                artifact apiJar
             }
 
             groupId = System.getenv("ARTIFACT_GROUP_ID") ?: "com.github.GTNewHorizons"
