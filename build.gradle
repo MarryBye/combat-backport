@@ -9,6 +9,7 @@
 import com.diffplug.blowdryer.Blowdryer
 import com.github.jengelman.gradle.plugins.shadow.tasks.ConfigureShadowRelocation
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.gtnewhorizons.retrofuturagradle.mcp.ReobfuscatedJar
 import com.matthewprenger.cursegradle.CurseArtifact
 import com.matthewprenger.cursegradle.CurseRelation
 import com.modrinth.minotaur.dependencies.ModDependency
@@ -65,7 +66,7 @@ plugins {
     id 'com.diffplug.spotless' version '6.7.2' apply false
     id 'com.modrinth.minotaur' version '2.+' apply false
     id 'com.matthewprenger.cursegradle' version '1.4.0' apply false
-    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.0'
+    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.2'
 }
 boolean settingsupdated = verifySettingsGradle()
 settingsupdated = verifyGitAttributes() || settingsupdated
@@ -289,7 +290,8 @@ if (file('addon.gradle').exists()) {
 apply from: 'repositories.gradle'
 
 configurations {
-    implementation.extendsFrom(shadowImplementation)  // TODO: remove after all uses are refactored
+    // TODO: remove after all uses of compile are refactored to api or implementation
+    implementation.extendsFrom(shadowImplementation)
     implementation.extendsFrom(shadowCompile)
     implementation.extendsFrom(shadeCompile)
 }
@@ -332,8 +334,9 @@ dependencies {
 apply from: 'dependencies.gradle'
 
 def mixingConfigRefMap = 'mixins.' + modId + '.refmap.json'
-def refMap = "${tasks.compileJava.temporaryDir}" + File.separator + mixingConfigRefMap
-def mixinSrg = "${tasks.reobfJar.temporaryDir}" + File.separator + "mixins.srg"
+def mixinTmpDir = buildDir.path + File.separator + 'tmp' + File.separator + 'mixins'
+def refMap = "${mixinTmpDir}" + File.separator + mixingConfigRefMap
+def mixinSrg = "${mixinTmpDir}" + File.separator + "mixins.srg"
 
 tasks.register('generateAssets') {
     group = "GTNH Buildscript"
@@ -369,7 +372,7 @@ tasks.register('relocateShadowJar', ConfigureShadowRelocation) {
     prefix = modGroup + ".shadow"
 }
 
-tasks.named("shadowJar", ShadowJar) {
+tasks.named("shadowJar", ShadowJar).configure {
     project.configurations.shadeCompile.each { dep ->
         from(project.zipTree(dep)) {
             exclude 'META-INF', 'META-INF/**'
@@ -385,10 +388,11 @@ tasks.named("shadowJar", ShadowJar) {
         project.configurations.shadowImplementation,
         project.configurations.shadowCompile
     ]
+    archiveClassifier.set('dev')
     dependsOn(relocateShadowJar)
 }
 
-tasks.named("jar", Jar) {
+tasks.named("jar", Jar).configure {
     project.configurations.shadeCompile.each { dep ->
         from(project.zipTree(dep)) {
             exclude 'META-INF', 'META-INF/**'
@@ -405,28 +409,29 @@ tasks.named("jar", Jar) {
     }
 }
 
-tasks.named("reobfJar") {
-    if (usesMixins.toBoolean()) {
+if (usesMixins.toBoolean()) {
+    tasks.named("reobfJar", ReobfuscatedJar).configure {
         extraSrgFiles += mixinSrg
     }
 }
 
-afterEvaluate {
-    if (usesMixins.toBoolean()) {
-        tasks.named("compileJava", JavaCompile) {
-            options.compilerArgs += [
-                "-AreobfSrgFile=${tasks.reobfJar.srg}",
-                "-AoutSrgFile=${mixinSrg}",
-                "-AoutRefMapFile=${refMap}",
-                // Elan: from what I understand they are just some linter configs so you get some warning on how to properly code
-                "-XDenableSunApiLintControl",
-                "-XDignore.symbol.file"
-            ]
+if (usesMixins.toBoolean()) {
+    tasks.named("compileJava", JavaCompile).configure {
+        doFirst {
+            mixinTmpDir.mkdirs()
         }
+        options.compilerArgs += [
+            "-AreobfSrgFile=${tasks.reobfJar.srg}",
+            "-AoutSrgFile=${mixinSrg}",
+            "-AoutRefMapFile=${refMap}",
+            // Elan: from what I understand they are just some linter configs so you get some warning on how to properly code
+            "-XDenableSunApiLintControl",
+            "-XDignore.symbol.file"
+        ]
     }
 }
 
-tasks.named("processResources", ProcessResources) {
+tasks.named("processResources", ProcessResources).configure {
     // this will ensure that this task is redone when the versions change.
     inputs.property "version", project.version
     inputs.property "mcversion", project.minecraft.mcVersion
@@ -469,15 +474,15 @@ def getManifestAttributes() {
     return manifestAttributes
 }
 
-tasks.register('shadowDevJar', ShadowJar) {
+tasks.register('shadowReobfJar', ShadowJar) {
     project.configurations.shadeCompile.each { dep ->
         from(project.zipTree(dep)) {
             exclude 'META-INF', 'META-INF/**'
         }
     }
 
-    from sourceSets.main.output
-    getArchiveClassifier().set("dev")
+    from tasks.reobfJar
+    getArchiveClassifier().set("")
 
     manifest {
         attributes(getManifestAttributes())
@@ -490,35 +495,9 @@ tasks.register('shadowDevJar', ShadowJar) {
     ]
 }
 
-tasks.register('relocateShadowDevJar', ConfigureShadowRelocation) {
-    target = tasks.shadowDevJar
+tasks.register('relocateShadowReobfJar', ConfigureShadowRelocation) {
+    target = tasks.shadowReobfJar
     prefix = modGroup + ".shadow"
-}
-
-tasks.register('circularResolverJar', Jar) {
-    dependsOn(relocateShadowDevJar)
-    dependsOn(shadowDevJar)
-    enabled = false
-}
-
-tasks.register('devJar', Jar) {
-    project.configurations.shadeCompile.each { dep ->
-        from(project.zipTree(dep)) {
-            exclude 'META-INF', 'META-INF/**'
-        }
-    }
-
-    from sourceSets.main.output
-    getArchiveClassifier().set("dev")
-
-    manifest {
-        attributes(getManifestAttributes())
-    }
-
-    if (usesShadowedDependencies.toBoolean()) {
-        dependsOn(circularResolverJar)
-        enabled = false
-    }
 }
 
 tasks.register('apiJar', Jar) {
@@ -541,7 +520,6 @@ artifacts {
     if (!noPublishedSources) {
         archives tasks.named("sourcesJar")
     }
-    archives tasks.named("devJar")
     if (apiPackage) {
         archives tasks.named("apiJar")
     }
@@ -553,14 +531,15 @@ def projectConfigs = project.configurations
 publishing {
     publications {
         create("maven", MavenPublication) {
-            from components.java
             if (usesShadowedDependencies.toBoolean()) {
-                artifact source: shadowJar, classifier: ""
+                artifact source: shadowReobfJar
+            } else {
+                from components.java
             }
             if (!noPublishedSources) {
-                artifact source: sourcesJar, classifier: "sources"
+                artifact source: sourcesJar
             }
-            artifact source: usesShadowedDependencies.toBoolean() ? shadowDevJar : devJar, classifier: "dev"
+            artifact source: usesShadowedDependencies.toBoolean() ? shadowJar : jar
             if (apiPackage) {
                 artifact source: apiJar, classifier: "api"
             }
@@ -595,7 +574,7 @@ if (modrinthProjectId.size() != 0 && System.getenv("MODRINTH_TOKEN") != null) {
         versionNumber = identifiedVersion
         versionType = identifiedVersion.endsWith("-pre") ? "beta" : "release"
         changelog = changelogFile.exists() ? changelogFile.getText("UTF-8") : ""
-        uploadFile = jar
+        uploadFile = reobfJar
         additionalFiles = getSecondaryArtifacts()
         gameVersions = [minecraftVersion]
         loaders = ["forge"]
@@ -636,7 +615,7 @@ if (curseForgeProjectId.size() != 0 && System.getenv("CURSEFORGE_TOKEN") != null
             releaseType = identifiedVersion.endsWith("-pre") ? "beta" : "release"
             addGameVersion minecraftVersion
             addGameVersion "Forge"
-            mainArtifact jar
+            mainArtifact reobfJar
             for (artifact in getSecondaryArtifacts()) addArtifact artifact
         }
 
@@ -802,7 +781,10 @@ tasks.register('deobfParams') {
 
         if (!file(paramsCSV).exists()) {
             println("Extracting MCP archive ...")
-            unzip(mcpZIP, mcpDir)
+            copy {
+                from(zipTree(mcpZIP))
+                into(mcpDir)
+            }
         }
 
         println("Parsing params.csv ...")
@@ -843,37 +825,6 @@ static int replaceParams(File file, Map<String, String> params) {
         e.printStackTrace()
     }
     return 0
-}
-
-// Credit: bitsnaps (https://gist.github.com/bitsnaps/00947f2dce66f4bbdabc67d7e7b33681)
-static unzip(String zipFileName, String outputDir) {
-    byte[] buffer = new byte[16384]
-    ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFileName))
-    ZipEntry zipEntry = zis.getNextEntry()
-    while (zipEntry != null) {
-        File newFile = new File(outputDir + File.separator, zipEntry.name)
-        if (zipEntry.isDirectory()) {
-            if (!newFile.isDirectory() && !newFile.mkdirs()) {
-                throw new IOException("Failed to create directory $newFile")
-            }
-        } else {
-            // fix for Windows-created archives
-            File parent = newFile.parentFile
-            if (!parent.isDirectory() && !parent.mkdirs()) {
-                throw new IOException("Failed to create directory $parent")
-            }
-            // write file content
-            FileOutputStream fos = new FileOutputStream(newFile)
-            int len = 0
-            while ((len = zis.read(buffer)) > 0) {
-                fos.write(buffer, 0, len)
-            }
-            fos.close()
-        }
-        zipEntry = zis.getNextEntry()
-    }
-    zis.closeEntry()
-    zis.close()
 }
 
 // Dependency Deobfuscation
@@ -1012,7 +963,7 @@ def getFile(String relativePath) {
 def getSecondaryArtifacts() {
     // Because noPublishedSources from the beginning of the script is somehow not visible here...
     boolean noPublishedSources = project.hasProperty("noPublishedSources") ? project.noPublishedSources.toBoolean() : false
-    def secondaryArtifacts = [devJar]
+    def secondaryArtifacts = [jar]
     if (!noPublishedSources) secondaryArtifacts += [sourcesJar]
     if (apiPackage) secondaryArtifacts += [apiJar]
     return secondaryArtifacts
