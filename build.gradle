@@ -295,6 +295,22 @@ configurations {
     implementation.extendsFrom(shadowImplementation)
     implementation.extendsFrom(shadowCompile)
     implementation.extendsFrom(shadeCompile)
+
+    // A "bag-of-dependencies"-style configuration for backwards compatibility, gets put in "api"
+    create("compile") {
+        description = "Deprecated: use api or implementation instead, gets put in api"
+        canBeConsumed = false
+        canBeResolved = false
+        visible = false
+    }
+    api.extendsFrom(compile)
+}
+
+afterEvaluate {
+    if (!configurations.compile.allDependencies.empty) {
+        logger.warn("This project uses deprecated `compile` dependencies, please migrate to using `api` and `implementation`")
+        logger.warn("For more details, see https://github.com/GTNewHorizons/ExampleMod1.7.10/blob/master/dependencies.gradle")
+    }
 }
 
 repositories {
