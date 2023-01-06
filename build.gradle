@@ -16,9 +16,11 @@ import com.modrinth.minotaur.dependencies.ModDependency
 import com.modrinth.minotaur.dependencies.VersionDependency
 import org.gradle.internal.logging.text.StyledTextOutput.Style
 import org.gradle.internal.logging.text.StyledTextOutputFactory
+import org.jetbrains.gradle.ext.Gradle as GradleRunConfig
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.text.MessageFormat
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -51,7 +53,7 @@ buildscript {
 }
 plugins {
     id 'java-library'
-    id 'idea'
+    id "org.jetbrains.gradle.plugin.idea-ext" version "1.1.7"
     id 'eclipse'
     id 'scala'
     id 'maven-publish'
@@ -66,7 +68,7 @@ plugins {
     id 'com.diffplug.spotless' version '6.7.2' apply false
     id 'com.modrinth.minotaur' version '2.+' apply false
     id 'com.matthewprenger.cursegradle' version '1.4.0' apply false
-    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.4'
+    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.7'
 }
 boolean settingsupdated = verifySettingsGradle()
 settingsupdated = verifyGitAttributes() || settingsupdated
@@ -78,8 +80,6 @@ if (project.file('.git/HEAD').isFile()) {
 }
 
 def out = services.get(StyledTextOutputFactory).create('an-output')
-
-apply plugin: 'com.gtnewhorizons.retrofuturagradle'
 
 def projectJavaVersion = JavaLanguageVersion.of(8)
 
@@ -137,9 +137,44 @@ java {
 
 idea {
     module {
-        inheritOutputDirs = true
         downloadJavadoc = true
         downloadSources = true
+    }
+    project {
+        languageLevel = "1.8"
+        jdkName = "1.8"
+        settings {
+            runConfigurations {
+                "1. Run Client"(GradleRunConfig) {
+                    taskNames = ["runClient"]
+                }
+                "2. Run Server"(GradleRunConfig) {
+                    taskNames = ["runServer"]
+                }
+                "3. Run Obfuscated Client"(GradleRunConfig) {
+                    taskNames = ["runObfClient"]
+                }
+                "4. Run Obfuscated Server"(GradleRunConfig) {
+                    taskNames = ["runObfServer"]
+                }
+                if (!disableSpotless) {
+                    "5. Apply spotless"(GradleRunConfig) {
+                        taskNames = ["spotlessApply"]
+                    }
+                }
+            }
+        }
+    }
+}
+
+eclipse {
+    classpath {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+    jdt {
+        sourceCompatibility = 1.8
+        targetCompatibility = 1.8
     }
 }
 
