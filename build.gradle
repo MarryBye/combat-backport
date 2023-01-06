@@ -342,11 +342,18 @@ configurations {
         canBeResolved = false
         visible = false
     }
+    create("testCompile") {
+        description = "Deprecated: use testImplementation instead"
+        canBeConsumed = false
+        canBeResolved = false
+        visible = false
+    }
     api.extendsFrom(compile)
+    testImplementation.extendsFrom(testCompile)
 }
 
 afterEvaluate {
-    if (!configurations.compile.allDependencies.empty) {
+    if (!configurations.compile.allDependencies.empty || !configurations.testCompile.allDependencies.empty) {
         logger.warn("This project uses deprecated `compile` dependencies, please migrate to using `api` and `implementation`")
         logger.warn("For more details, see https://github.com/GTNewHorizons/ExampleMod1.7.10/blob/master/dependencies.gradle")
     }
