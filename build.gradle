@@ -309,7 +309,7 @@ minecraft {
     }
 
     if (usesMixins.toBoolean() || forceEnableMixins.toBoolean()) {
-        extraTweakClasses.add("--tweakClass org.spongepowered.asm.launch.MixinTweaker")
+        extraTweakClasses.add("org.spongepowered.asm.launch.MixinTweaker")
 
         if (usesMixinDebug.toBoolean()) {
             extraRunJvmArguments.addAll([
@@ -325,11 +325,26 @@ if (file('addon.gradle').exists()) {
     apply from: 'addon.gradle'
 }
 
+// Allow unsafe repos but warn
+repositories.configureEach { repo ->
+    if (repo instanceof org.gradle.api.artifacts.repositories.UrlArtifactRepository) {
+        if (repo.getUrl().getScheme() == "http" && !repo.allowInsecureProtocol) {
+            logger.warn("Deprecated: Allowing insecure connections for repo '${repo.name}' - add 'allowInsecureProtocol = true'")
+            repo.allowInsecureProtocol = true
+        }
+    }
+}
+
 apply from: 'repositories.gradle'
 
 configurations {
+    create("runtimeOnlyNonPublishable") {
+        description = "Runtime only dependencies that are not published alongside the jar"
+        canBeConsumed = false
+        canBeResolved = false
+    }
     // TODO: remove Compile after all uses are refactored to Implementation
-    for (config in [shadowImplementation, shadowCompile, shadeCompile]) {
+    for (config in [shadowImplementation, shadowCompile, shadeCompile, runtimeOnlyNonPublishable]) {
         compileClasspath.extendsFrom(config)
         runtimeClasspath.extendsFrom(config)
         testCompileClasspath.extendsFrom(config)
@@ -389,8 +404,7 @@ dependencies {
         annotationProcessor('com.google.code.gson:gson:2.8.6')
         annotationProcessor('com.gtnewhorizon:gtnhmixins:2.1.3:processor')
         if (usesMixinDebug.toBoolean()) {
-            runtimeClasspath('org.jetbrains:intellij-fernflower:1.2.1.16')
-            testRuntimeClasspath('org.jetbrains:intellij-fernflower:1.2.1.16')
+            runtimeOnlyNonPublishable('org.jetbrains:intellij-fernflower:1.2.1.16')
         }
     }
     if (usesMixins.toBoolean() || forceEnableMixins.toBoolean()) {
@@ -441,12 +455,6 @@ tasks.register('relocateShadowJar', ConfigureShadowRelocation) {
 
 tasks.named("shadowJar", ShadowJar).configure {
     if (usesShadowedDependencies.toBoolean()) {
-        project.configurations.shadeCompile.each { dep ->
-            from(project.zipTree(dep)) {
-                exclude 'META-INF', 'META-INF/**'
-            }
-        }
-
         manifest {
             attributes(getManifestAttributes())
         }
@@ -454,7 +462,8 @@ tasks.named("shadowJar", ShadowJar).configure {
         minimize()  // This will only allow shading for actually used classes
         configurations = [
             project.configurations.shadowImplementation,
-            project.configurations.shadowCompile
+            project.configurations.shadowCompile,
+            project.configurations.shadeCompile
         ]
         archiveClassifier.set('dev')
         dependsOn(relocateShadowJar)
@@ -482,17 +491,17 @@ tasks.named("jar", Jar).configure {
 
 if (usesMixins.toBoolean()) {
     tasks.named("reobfJar", ReobfuscatedJar).configure {
-        extraSrgFiles += mixinSrg
+        extraSrgFiles.from(mixinSrg)
     }
 }
 
 if (usesMixins.toBoolean()) {
     tasks.named("compileJava", JavaCompile).configure {
         doFirst {
-            mixinTmpDir.mkdirs()
+            new File(mixinTmpDir).mkdirs()
         }
         options.compilerArgs += [
-            "-AreobfSrgFile=${tasks.reobfJar.srg}",
+            "-AreobfSrgFile=${tasks.reobfJar.srg.get().asFile}",
             "-AoutSrgFile=${mixinSrg}",
             "-AoutRefMapFile=${refMap}",
             // Elan: from what I understand they are just some linter configs so you get some warning on how to properly code
@@ -546,13 +555,12 @@ def getManifestAttributes() {
 }
 
 if (usesShadowedDependencies.toBoolean()) {
-    tasks.register('shadowReobfJar', ShadowJar) {
-        project.configurations.shadeCompile.each { dep ->
-            from(project.zipTree(dep)) {
-                exclude 'META-INF', 'META-INF/**'
-            }
-        }
+    tasks.named("reobfJar", ReobfuscatedJar) {
+        archiveClassifier.set("-preshadow")
+        destinationDirectory.set(new File(buildDir, "tmp"))
+    }
 
+    tasks.register('shadowReobfJar', ShadowJar) {
         from tasks.reobfJar
         getArchiveClassifier().set("")
 
@@ -563,7 +571,8 @@ if (usesShadowedDependencies.toBoolean()) {
         minimize()  // This will only allow shading for actually used classes
         configurations = [
             project.configurations.shadowImplementation,
-            project.configurations.shadowCompile
+            project.configurations.shadowCompile,
+            project.configurations.shadeCompile
         ]
     }
 
@@ -606,13 +615,9 @@ publishing {
         create("maven", MavenPublication) {
             if (usesShadowedDependencies.toBoolean()) {
                 artifact shadowReobfJar
-                artifact shadowJar
+                project.shadow.component(it)
             } else {
-                artifact reobfJar
-                artifact jar
-            }
-            if (!noPublishedSources) {
-                artifact sourcesJar
+                from components.java
             }
             if (apiPackage) {
                 artifact apiJar
