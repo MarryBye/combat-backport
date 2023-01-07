@@ -61,14 +61,14 @@ plugins {
     id 'org.jetbrains.kotlin.kapt' version '1.5.30' apply false
     id 'com.google.devtools.ksp' version '1.5.30-1.0.0' apply false
     id 'org.ajoberstar.grgit' version '4.1.1' // 4.1.1 is the last jvm8 supporting version ,unused, available for addon.gradle
-    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id 'com.github.johnrengelman.shadow' version '7.1.2' apply false
     id 'com.palantir.git-version' version '0.13.0' apply false // 0.13.0 is the last jvm8 supporting version
     id 'de.undercouch.download' version '5.3.0'
     id 'com.github.gmazzo.buildconfig' version '3.1.0' apply false // Unused, available for addon.gradle
     id 'com.diffplug.spotless' version '6.7.2' apply false
     id 'com.modrinth.minotaur' version '2.+' apply false
     id 'com.matthewprenger.cursegradle' version '1.4.0' apply false
-    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.7'
+    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.9'
 }
 boolean settingsupdated = verifySettingsGradle()
 settingsupdated = verifyGitAttributes() || settingsupdated
@@ -111,6 +111,7 @@ checkPropertyExists("containsMixinsAndOrCoreModOnly")
 checkPropertyExists("usesShadowedDependencies")
 checkPropertyExists("developmentEnvironmentUserName")
 
+propertyDefaultIfUnset("includeWellKnownRepositories", true)
 propertyDefaultIfUnset("noPublishedSources", false)
 propertyDefaultIfUnset("usesMixinDebug", project.usesMixins)
 propertyDefaultIfUnset("forceEnableMixins", false)
@@ -124,6 +125,10 @@ propertyDefaultIfUnset("curseForgeRelations", "")
 String javaSourceDir = "src/main/java/"
 String scalaSourceDir = "src/main/scala/"
 String kotlinSourceDir = "src/main/kotlin/"
+
+if (usesShadowedDependencies.toBoolean()) {
+    apply plugin: "com.github.johnrengelman.shadow"
+}
 
 java {
     toolchain {
@@ -319,6 +324,22 @@ minecraft {
             ])
         }
     }
+
+    // Blowdryer is present in some old mod builds, do not propagate it further as a dependency
+    // IC2 has no reobf jars in its Maven
+    groupsToExcludeFromAutoReobfMapping.addAll(["com.diffplug", "com.diffplug.durian", "net.industrial-craft"])
+}
+
+// Custom reobf auto-mappings
+configurations.configureEach {
+    dependencies.configureEach { dep ->
+        if (dep instanceof org.gradle.api.artifacts.ExternalModuleDependency) {
+            if (dep.group == "net.industrial-craft" && dep.name == "industrialcraft-2") {
+                // https://www.curseforge.com/minecraft/mc-mods/industrial-craft/files/2353971
+                project.dependencies.reobfJarConfiguration("curse.maven:ic2-242638:2353971")
+            }
+        }
+    }
 }
 
 if (file('addon.gradle').exists()) {
@@ -343,12 +364,14 @@ configurations {
         canBeConsumed = false
         canBeResolved = false
     }
-    // TODO: remove Compile after all uses are refactored to Implementation
-    for (config in [shadowImplementation, shadowCompile, shadeCompile, runtimeOnlyNonPublishable]) {
-        compileClasspath.extendsFrom(config)
-        runtimeClasspath.extendsFrom(config)
-        testCompileClasspath.extendsFrom(config)
-        testRuntimeClasspath.extendsFrom(config)
+    for (config in [compileClasspath, runtimeClasspath, testCompileClasspath, testRuntimeClasspath]) {
+        config.extendsFrom(runtimeOnlyNonPublishable)
+        if (usesShadowedDependencies.toBoolean()) {
+            config.extendsFrom(shadowImplementation)
+            // TODO: remove Compile after all uses are refactored to Implementation
+            config.extendsFrom(shadeCompile)
+            config.extendsFrom(shadowCompile)
+        }
     }
     // A "bag-of-dependencies"-style configuration for backwards compatibility, gets put in "api"
     create("compile") {
@@ -393,6 +416,35 @@ repositories {
                 name = "Fabric Maven"
                 url = "https://maven.fabricmc.net/"
             }
+        }
+    }
+    if (includeWellKnownRepositories.toBoolean()) {
+        maven {
+            name "CurseMaven"
+            url "https://cursemaven.com"
+            content {
+                includeGroup "curse.maven"
+            }
+        }
+        maven {
+            name = "ic2"
+            url = "https://maven.ic2.player.to/"
+            metadataSources {
+                mavenPom()
+                artifact()
+            }
+        }
+        maven {
+            name = "ic2-mirror"
+            url = "https://maven2.ic2.player.to/"
+            metadataSources {
+                mavenPom()
+                artifact()
+            }
+        }
+        maven {
+            name "MMD Maven"
+            url "https://maven.mcmoddev.com/"
         }
     }
 }
@@ -445,47 +497,6 @@ tasks.register('generateAssets') {
 }
 """
         }
-    }
-}
-
-tasks.register('relocateShadowJar', ConfigureShadowRelocation) {
-    target = tasks.shadowJar
-    prefix = modGroup + ".shadow"
-}
-
-tasks.named("shadowJar", ShadowJar).configure {
-    if (usesShadowedDependencies.toBoolean()) {
-        manifest {
-            attributes(getManifestAttributes())
-        }
-
-        minimize()  // This will only allow shading for actually used classes
-        configurations = [
-            project.configurations.shadowImplementation,
-            project.configurations.shadowCompile,
-            project.configurations.shadeCompile
-        ]
-        archiveClassifier.set('dev')
-        dependsOn(relocateShadowJar)
-    } else {
-        enabled = false
-    }
-}
-
-tasks.named("jar", Jar).configure {
-    project.configurations.shadeCompile.each { dep ->
-        from(project.zipTree(dep)) {
-            exclude 'META-INF', 'META-INF/**'
-        }
-    }
-
-    manifest {
-        attributes(getManifestAttributes())
-    }
-
-    if (usesShadowedDependencies.toBoolean()) {
-        dependsOn(tasks.shadowJar)
-        enabled = false
     }
 }
 
@@ -554,16 +565,18 @@ def getManifestAttributes() {
     return manifestAttributes
 }
 
-if (usesShadowedDependencies.toBoolean()) {
-    tasks.named("reobfJar", ReobfuscatedJar) {
-        archiveClassifier.set("-preshadow")
-        destinationDirectory.set(new File(buildDir, "tmp"))
+tasks.named("jar", Jar).configure {
+    manifest {
+        attributes(getManifestAttributes())
     }
+}
 
-    tasks.register('shadowReobfJar', ShadowJar) {
-        from tasks.reobfJar
-        getArchiveClassifier().set("")
-
+if (usesShadowedDependencies.toBoolean()) {
+    tasks.register('relocateShadowJar', ConfigureShadowRelocation) {
+        target = tasks.shadowJar
+        prefix = modGroup + ".shadow"
+    }
+    tasks.named("shadowJar", ShadowJar).configure {
         manifest {
             attributes(getManifestAttributes())
         }
@@ -574,13 +587,27 @@ if (usesShadowedDependencies.toBoolean()) {
             project.configurations.shadowCompile,
             project.configurations.shadeCompile
         ]
+        archiveClassifier.set('dev')
+        dependsOn(relocateShadowJar)
     }
-
-    tasks.register('relocateShadowReobfJar', ConfigureShadowRelocation) {
-        target = tasks.shadowReobfJar
-        prefix = modGroup + ".shadow"
+    configurations.runtimeElements.outgoing.artifacts.clear()
+    configurations.apiElements.outgoing.artifacts.clear()
+    configurations.runtimeElements.outgoing.artifact(tasks.named("shadowJar", ShadowJar))
+    configurations.apiElements.outgoing.artifact(tasks.named("shadowJar", ShadowJar))
+    tasks.named("jar", Jar) {
+        enabled = false
+        finalizedBy(tasks.shadowJar)
+    }
+    tasks.named("reobfJar", ReobfuscatedJar) {
+        inputJar.set(tasks.named("shadowJar", ShadowJar).flatMap({it.archiveFile}))
+    }
+    AdhocComponentWithVariants javaComponent = (AdhocComponentWithVariants) project.components.findByName("java")
+    javaComponent.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
+        skip()
     }
 }
+ext.publishableDevJar = usesShadowedDependencies.toBoolean() ? tasks.shadowJar : tasks.jar
+ext.publishableObfJar = tasks.reobfJar
 
 tasks.register('apiJar', Jar) {
     from(sourceSets.main.allSource) {
@@ -613,12 +640,8 @@ def projectConfigs = project.configurations
 publishing {
     publications {
         create("maven", MavenPublication) {
-            if (usesShadowedDependencies.toBoolean()) {
-                artifact shadowReobfJar
-                project.shadow.component(it)
-            } else {
-                from components.java
-            }
+            from components.java
+
             if (apiPackage) {
                 artifact apiJar
             }
@@ -653,7 +676,7 @@ if (modrinthProjectId.size() != 0 && System.getenv("MODRINTH_TOKEN") != null) {
         versionNumber = identifiedVersion
         versionType = identifiedVersion.endsWith("-pre") ? "beta" : "release"
         changelog = changelogFile.exists() ? changelogFile.getText("UTF-8") : ""
-        uploadFile = reobfJar
+        uploadFile = publishableObfJar
         additionalFiles = getSecondaryArtifacts()
         gameVersions = [minecraftVersion]
         loaders = ["forge"]
@@ -694,7 +717,7 @@ if (curseForgeProjectId.size() != 0 && System.getenv("CURSEFORGE_TOKEN") != null
             releaseType = identifiedVersion.endsWith("-pre") ? "beta" : "release"
             addGameVersion minecraftVersion
             addGameVersion "Forge"
-            mainArtifact reobfJar
+            mainArtifact publishableObfJar
             for (artifact in getSecondaryArtifacts()) addArtifact artifact
         }
 
@@ -1042,7 +1065,7 @@ def getFile(String relativePath) {
 def getSecondaryArtifacts() {
     // Because noPublishedSources from the beginning of the script is somehow not visible here...
     boolean noPublishedSources = project.hasProperty("noPublishedSources") ? project.noPublishedSources.toBoolean() : false
-    def secondaryArtifacts = [jar]
+    def secondaryArtifacts = [publishableDevJar]
     if (!noPublishedSources) secondaryArtifacts += [sourcesJar]
     if (apiPackage) secondaryArtifacts += [apiJar]
     return secondaryArtifacts
