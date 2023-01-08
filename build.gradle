@@ -16,7 +16,7 @@ import com.modrinth.minotaur.dependencies.ModDependency
 import com.modrinth.minotaur.dependencies.VersionDependency
 import org.gradle.internal.logging.text.StyledTextOutput.Style
 import org.gradle.internal.logging.text.StyledTextOutputFactory
-import org.jetbrains.gradle.ext.Gradle as GradleRunConfig
+import org.jetbrains.gradle.ext.*
 
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -150,26 +150,57 @@ idea {
         jdkName = "1.8"
         settings {
             runConfigurations {
-                "1. Run Client"(GradleRunConfig) {
+                "1. Run Client"(Gradle) {
                     taskNames = ["runClient"]
                 }
-                "2. Run Server"(GradleRunConfig) {
+                "2. Run Server"(Gradle) {
                     taskNames = ["runServer"]
                 }
-                "3. Run Obfuscated Client"(GradleRunConfig) {
+                "3. Run Obfuscated Client"(Gradle) {
                     taskNames = ["runObfClient"]
                 }
-                "4. Run Obfuscated Server"(GradleRunConfig) {
+                "4. Run Obfuscated Server"(Gradle) {
                     taskNames = ["runObfServer"]
                 }
                 if (!disableSpotless) {
-                    "5. Apply spotless"(GradleRunConfig) {
+                    "5. Apply spotless"(Gradle) {
                         taskNames = ["spotlessApply"]
                     }
+                }
+                "Run Client (IJ Native)"(Application) {
+                    mainClass = "GradleStart"
+                    moduleName = project.name + ".main"
+                    afterEvaluate {
+                        workingDirectory = tasks.runClient.workingDir.absolutePath
+                        programParameters = tasks.runClient.calculateArgs(project).collect {'"' + it + '"'}.join(' ')
+                        jvmArgs = tasks.runClient.calculateJvmArgs(project).collect {'"' + it + '"'}.join(' ') +
+                         ' ' + tasks.runClient.systemProperties.collect {'"-D' + it.key + '=' + it.value.toString() + '"'}.join(' ')
+                    }
+                }
+                "Run Server (IJ Native)"(Application) {
+                    mainClass = "GradleStartServer"
+                    moduleName = project.name + ".main"
+                    afterEvaluate {
+                        workingDirectory = tasks.runServer.workingDir.absolutePath
+                        programParameters = tasks.runServer.calculateArgs(project).collect {'"' + it + '"'}.join(' ')
+                        jvmArgs = tasks.runServer.calculateJvmArgs(project).collect {'"' + it + '"'}.join(' ') +
+                            ' ' + tasks.runServer.systemProperties.collect {'"-D' + it.key + '=' + it.value.toString() + '"'}.join(' ')
+                    }
+                }
+            }
+            compiler.javac {
+                afterEvaluate {
+                    moduleJavacAdditionalOptions = [
+                        (project.name + ".main"): tasks.compileJava.options.compilerArgs.collect { '"' + it + '"' }.join(' ')
+                    ]
                 }
             }
         }
     }
+}
+
+tasks.named("processIdeaSettings").configure {
+    dependsOn("injectTags")
 }
 
 eclipse {
