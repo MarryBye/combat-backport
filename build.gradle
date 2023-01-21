@@ -122,6 +122,7 @@ propertyDefaultIfUnset("modrinthProjectId", "")
 propertyDefaultIfUnset("modrinthRelations", "")
 propertyDefaultIfUnset("curseForgeProjectId", "")
 propertyDefaultIfUnset("curseForgeRelations", "")
+propertyDefaultIfUnset("minimizeShadowedDependencies", true)
 
 String javaSourceDir = "src/main/java/"
 String scalaSourceDir = "src/main/scala/"
@@ -623,7 +624,9 @@ if (usesShadowedDependencies.toBoolean()) {
             attributes(getManifestAttributes())
         }
 
-        minimize()  // This will only allow shading for actually used classes
+        if (minimizeShadowedDependencies.toBoolean()) {
+            minimize()  // This will only allow shading for actually used classes
+        }
         configurations = [
             project.configurations.shadowImplementation,
             project.configurations.shadowCompile,
@@ -646,6 +649,11 @@ if (usesShadowedDependencies.toBoolean()) {
     AdhocComponentWithVariants javaComponent = (AdhocComponentWithVariants) project.components.findByName("java")
     javaComponent.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
         skip()
+    }
+    for (runTask in ["runClient", "runServer"]) {
+        tasks.named(runTask).configure {
+            dependsOn("shadowJar")
+        }
     }
 }
 ext.publishableDevJar = usesShadowedDependencies.toBoolean() ? tasks.shadowJar : tasks.jar
