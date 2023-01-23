@@ -123,6 +123,7 @@ propertyDefaultIfUnset("modrinthRelations", "")
 propertyDefaultIfUnset("curseForgeProjectId", "")
 propertyDefaultIfUnset("curseForgeRelations", "")
 propertyDefaultIfUnset("minimizeShadowedDependencies", true)
+propertyDefaultIfUnset("enableModernJavaSyntax", false) // On by default for new projects only
 
 String javaSourceDir = "src/main/java/"
 String scalaSourceDir = "src/main/scala/"
@@ -134,7 +135,11 @@ if (usesShadowedDependencies.toBoolean()) {
 
 java {
     toolchain {
-        languageVersion.set(projectJavaVersion)
+        if (enableModernJavaSyntax.toBoolean()) {
+            languageVersion.set(JavaLanguageVersion.of(17))
+        } else {
+            languageVersion.set(projectJavaVersion)
+        }
         vendor.set(JvmVendorSpec.ADOPTIUM)
     }
     if (!noPublishedSources) {
@@ -142,14 +147,34 @@ java {
     }
 }
 
+configurations {
+    create("runtimeOnlyNonPublishable") {
+        description = "Runtime only dependencies that are not published alongside the jar"
+        canBeConsumed = false
+        canBeResolved = false
+    }
+}
+
+if (enableModernJavaSyntax.toBoolean()) {
+    dependencies {
+        annotationProcessor 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
+        runtimeOnlyNonPublishable 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
+    }
+
+    tasks.withType(JavaCompile) {
+        sourceCompatibility = 17 // for the IDE support
+        options.release = 8
+
+        javaCompiler = javaToolchains.compilerFor {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+}
+
 eclipse {
     classpath {
         downloadSources = true
         downloadJavadoc = true
-    }
-    jdt {
-        sourceCompatibility = 1.8
-        targetCompatibility = 1.8
     }
 }
 
@@ -337,11 +362,6 @@ repositories.configureEach { repo ->
 apply from: 'repositories.gradle'
 
 configurations {
-    create("runtimeOnlyNonPublishable") {
-        description = "Runtime only dependencies that are not published alongside the jar"
-        canBeConsumed = false
-        canBeResolved = false
-    }
     for (config in [compileClasspath, runtimeClasspath, testCompileClasspath, testRuntimeClasspath]) {
         config.extendsFrom(runtimeOnlyNonPublishable)
         if (usesShadowedDependencies.toBoolean()) {
@@ -635,8 +655,6 @@ idea {
         downloadSources = true
     }
     project {
-        languageLevel = "1.8"
-        jdkName = "1.8"
         settings {
             runConfigurations {
                 "1. Run Client"(Gradle) {
