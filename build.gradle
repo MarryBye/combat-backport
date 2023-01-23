@@ -594,6 +594,16 @@ if (usesShadowedDependencies.toBoolean()) {
 ext.publishableDevJar = usesShadowedDependencies.toBoolean() ? tasks.shadowJar : tasks.jar
 ext.publishableObfJar = tasks.reobfJar
 
+tasks.named('extractForgeUserdev', Copy).configure { efu ->
+    doLast {
+        // Fix CoFH-repackaged CCL not finding mappings
+        project.copy {
+            from(mcpTasks.userdevDir("conf"))
+            into(new File(project.buildDir, "unpacked/conf"))
+        }
+    }
+}
+
 tasks.register('apiJar', Jar) {
     from(sourceSets.main.allSource) {
         include modGroupPath + "/" + apiPackagePath + '/**'
