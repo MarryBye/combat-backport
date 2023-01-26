@@ -68,7 +68,7 @@ plugins {
     id 'com.diffplug.spotless' version '6.7.2' apply false
     id 'com.modrinth.minotaur' version '2.+' apply false
     id 'com.matthewprenger.cursegradle' version '1.4.0' apply false
-    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.13'
+    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.14'
 }
 boolean settingsupdated = verifySettingsGradle()
 settingsupdated = verifyGitAttributes() || settingsupdated
@@ -84,11 +84,6 @@ def out = services.get(StyledTextOutputFactory).create('an-output')
 def projectJavaVersion = JavaLanguageVersion.of(8)
 
 boolean disableSpotless = project.hasProperty("disableSpotless") ? project.disableSpotless.toBoolean() : false
-
-if (!disableSpotless) {
-    apply plugin: 'com.diffplug.spotless'
-    apply from: Blowdryer.file('spotless.gradle')
-}
 
 checkPropertyExists("modName")
 checkPropertyExists("modId")
@@ -125,6 +120,11 @@ propertyDefaultIfUnset("curseForgeRelations", "")
 propertyDefaultIfUnset("minimizeShadowedDependencies", true)
 propertyDefaultIfUnset("enableModernJavaSyntax", false) // On by default for new projects only
 
+if (!disableSpotless) {
+    apply plugin: 'com.diffplug.spotless'
+    apply from: Blowdryer.file('spotless.gradle')
+}
+
 String javaSourceDir = "src/main/java/"
 String scalaSourceDir = "src/main/scala/"
 String kotlinSourceDir = "src/main/kotlin/"
@@ -158,16 +158,22 @@ configurations {
 if (enableModernJavaSyntax.toBoolean()) {
     dependencies {
         annotationProcessor 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
-        runtimeOnlyNonPublishable 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
+        compileOnly('com.github.bsideup.jabel:jabel-javac-plugin:1.0.0') {
+            transitive = false // We only care about the 1 annotation class
+        }
     }
 
-    tasks.withType(JavaCompile) {
-        sourceCompatibility = 17 // for the IDE support
-        options.release = 8
-
-        javaCompiler = javaToolchains.compilerFor {
-            languageVersion = JavaLanguageVersion.of(17)
+    tasks.withType(JavaCompile).configureEach {
+        if (it.name in ["compileMcLauncherJava", "compilePatchedMcJava"]) {
+            return
         }
+        sourceCompatibility = 17 // for the IDE support
+        options.release.set(8)
+
+        javaCompiler.set(javaToolchains.compilerFor {
+            languageVersion.set(JavaLanguageVersion.of(17))
+            vendor.set(JvmVendorSpec.ADOPTIUM)
+        })
     }
 }
 
