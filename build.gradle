@@ -68,7 +68,7 @@ plugins {
     id 'com.diffplug.spotless' version '6.7.2' apply false
     id 'com.modrinth.minotaur' version '2.+' apply false
     id 'com.matthewprenger.cursegradle' version '1.4.0' apply false
-    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.14'
+    id 'com.gtnewhorizons.retrofuturagradle' version '1.0.15'
 }
 boolean settingsupdated = verifySettingsGradle()
 settingsupdated = verifyGitAttributes() || settingsupdated
@@ -119,6 +119,7 @@ propertyDefaultIfUnset("curseForgeProjectId", "")
 propertyDefaultIfUnset("curseForgeRelations", "")
 propertyDefaultIfUnset("minimizeShadowedDependencies", true)
 propertyDefaultIfUnset("enableModernJavaSyntax", false) // On by default for new projects only
+propertyDefaultIfUnset("enableGenericInjection", false) // On by default for new projects only
 
 if (!disableSpotless) {
     apply plugin: 'com.diffplug.spotless'
@@ -313,6 +314,9 @@ minecraft {
     }
     if (gradleTokenGroupName) {
         injectedTags.put gradleTokenGroupName, modGroup
+    }
+    if (enableGenericInjection.toBoolean()) {
+        injectMissingGenerics.set(true)
     }
 
     // Enable assertions in the current mod
