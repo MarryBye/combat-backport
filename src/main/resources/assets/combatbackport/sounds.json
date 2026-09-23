@@ -1,0 +1,14 @@
+{
+  "player.attack.sweep": {
+    "category": "player",
+    "sounds": [
+      "combatbackport:player/attack/sweep1",
+      "combatbackport:player/attack/sweep2",
+      "combatbackport:player/attack/sweep3",
+      "combatbackport:player/attack/sweep4",
+      "combatbackport:player/attack/sweep5",
+      "combatbackport:player/attack/sweep6",
+      "combatbackport:player/attack/sweep7"
+    ]
+  }
+}

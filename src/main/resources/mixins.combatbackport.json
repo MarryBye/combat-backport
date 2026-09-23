@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "package": "com.marrybye.combatbackport.mixins",
+  "refmap": "mixins.combatbackport.refmap.json",
+  "target": "@env(DEFAULT)",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinEntityPlayer"
+  ],
+  "client": [
+    "MixinMinecraft",
+    "MixinItemRenderer"
+  ]
+}
