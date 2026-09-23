@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.entity.RenderPlayer;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.init.Items;
 import net.minecraft.item.EnumAction;
+import net.minecraft.item.ItemAxe;
 import net.minecraft.item.ItemCloth;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.MathHelper;
@@ -25,6 +26,7 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 
 import com.marrybye.combatbackport.Config;
 import com.marrybye.combatbackport.api.ICombatPlayer;
@@ -56,6 +58,41 @@ public abstract class MixinItemRenderer {
 
     @Shadow
     public abstract void renderItem(EntityLivingBase p_78443_1_, ItemStack p_78443_2_, int p_78443_3_);
+
+    @Unique
+    private boolean combatbackport$isAxe(ItemStack stack) {
+        if (stack == null || stack.getItem() == null) {
+            return false;
+        }
+        if (stack.getItem() instanceof ItemAxe) {
+            return true;
+        }
+        java.util.Set<String> toolClasses = stack.getItem()
+            .getToolClasses(stack);
+        if (toolClasses != null && toolClasses.contains("axe")) {
+            return true;
+        }
+        String name = stack.getItem()
+            .getUnlocalizedName();
+        if (name != null) {
+            name = name.toLowerCase();
+            return name.contains("axe") || name.contains("hatchet")
+                || name.contains("mattock")
+                || name.contains("cleaver")
+                || name.contains("tomahawk")
+                || name.contains("lumberaxe")
+                || name.contains("battleaxe");
+        }
+        String simpleName = stack.getItem()
+            .getClass()
+            .getSimpleName()
+            .toLowerCase();
+        return simpleName.contains("axe") || simpleName.contains("hatchet")
+            || simpleName.contains("mattock")
+            || simpleName.contains("cleaver")
+            || simpleName.contains("tomahawk")
+            || simpleName.contains("battleaxe");
+    }
 
     /**
      * @author MarryBye & Gemini AI
@@ -95,6 +132,9 @@ public abstract class MixinItemRenderer {
         if (!flag) {
             // Lower item when switching slots
             fTarget = 0.0F;
+        } else if (com.marrybye.combatbackport.client.ClientMiningHandler.isMiningSwing(this.mc)) {
+            // Keep tool ready during active block mining / foliage clearing
+            fTarget = 1.0F;
         } else {
             // In 1.9+, target progress is cooldown^3 (both for equip rise and attack recovery)
             fTarget = (fCooldown * fCooldown * fCooldown);
@@ -122,14 +162,16 @@ public abstract class MixinItemRenderer {
 
     /**
      * @author MarryBye & Gemini AI
-     * @reason Authentic Minecraft 1.9+ attack swing animation: forward strike, blade rotation,
-     *         smooth plunge to the bottom of the screen, and vertical cooldown rise.
+     * @reason Authentic Minecraft 1.9+ transformFirstPersonItem and renderItemInFirstPerson implementation,
+     *         with separate handling for digging/mining and enhanced visibility for axes.
      */
     @Overwrite
     public void renderItemInFirstPerson(float partialTicks) {
         float f1 = this.prevEquippedProgress + (this.equippedProgress - this.prevEquippedProgress) * partialTicks;
-        EntityClientPlayerMP entityclientplayermp = this.mc.thePlayer;
+        EntityClientPlayerMP entityclientplayermp = this.mc != null ? this.mc.thePlayer : null;
         if (entityclientplayermp == null) return;
+
+        boolean mining = com.marrybye.combatbackport.client.ClientMiningHandler.isMiningSwing(this.mc);
 
         float f2 = entityclientplayermp.prevRotationPitch
             + (entityclientplayermp.rotationPitch - entityclientplayermp.prevRotationPitch) * partialTicks;
@@ -245,7 +287,6 @@ public abstract class MixinItemRenderer {
             GL11.glPopMatrix();
         } else if (itemstack != null) {
             GL11.glPushMatrix();
-            float fScale = 0.8F;
 
             if (entityclientplayermp.getItemInUseCount() > 0) {
                 EnumAction enumaction = itemstack.getItemUseAction();
@@ -267,7 +308,8 @@ public abstract class MixinItemRenderer {
                     GL11.glRotatef(fEat * 10.0F, 1.0F, 0.0F, 0.0F);
                     GL11.glRotatef(fEat * 30.0F, 0.0F, 0.0F, 1.0F);
                 }
-            } else if (!Config.enableNewSwingAnimation) {
+            } else if (!Config.enableNewSwingAnimation || mining) {
+                // Classic rhythmic mining translation when breaking blocks
                 float fSwing = entityclientplayermp.getSwingProgress(partialTicks);
                 float fSin = MathHelper.sin(fSwing * (float) Math.PI);
                 float fSinSqrt = MathHelper.sin(MathHelper.sqrt_float(fSwing) * (float) Math.PI);
@@ -277,41 +319,26 @@ public abstract class MixinItemRenderer {
                     -fSin * 0.2F);
             }
 
-            if (Config.enableNewSwingAnimation) {
-                float swingProgress = entityclientplayermp.getSwingProgress(partialTicks);
-                // During swing, effective equip height blends from full view (1.0) down to cooldown position (f1)
-                float effectiveEquip = swingProgress > 0.0F ? (1.0F - swingProgress * (1.0F - f1)) : f1;
+            // Enhanced visibility for axes during combat swing
+            boolean isAxe = !mining && Config.enableNewSwingAnimation && combatbackport$isAxe(itemstack);
+            float fSwing = entityclientplayermp.getSwingProgress(partialTicks);
+            float f1_sqrt = MathHelper.sin(MathHelper.sqrt_float(fSwing) * (float) Math.PI);
 
-                float fSinSq = MathHelper.sin(swingProgress * swingProgress * (float) Math.PI);
-                float fSinSqrt = MathHelper.sin(MathHelper.sqrt_float(swingProgress) * (float) Math.PI);
+            float axeX = isAxe ? -0.06F * f1_sqrt : 0.0F;
+            float axeY = isAxe ? 0.12F * f1_sqrt : 0.0F;
+            float axeZ = isAxe ? -0.22F * f1_sqrt : 0.0F;
+            float axePitch = isAxe ? -68.0F : -80.0F;
 
-                // Forward surge into the screen towards the crosshair & lateral sweep
-                float swingZ = -0.45F * fSinSqrt;
-                float swingX = -0.25F * fSinSqrt;
+            // Authentic 1.9+ transformFirstPersonItem
+            GL11.glTranslatef(0.56F + axeX, -0.52F + (1.0F - f1) * -0.6F + axeY, -0.71999997F + axeZ);
+            GL11.glRotatef(45.0F, 0.0F, 1.0F, 0.0F);
+            GL11.glEnable(GL12.GL_RESCALE_NORMAL);
 
-                GL11.glTranslatef(
-                    0.7F * fScale + swingX,
-                    -0.65F * fScale - (1.0F - effectiveEquip) * 0.6F,
-                    -0.9F * fScale + swingZ);
-                GL11.glRotatef(45.0F, 0.0F, 1.0F, 0.0F);
+            float f = MathHelper.sin(fSwing * fSwing * (float) Math.PI);
 
-                // Authentic 1.9+ blade swing rotations (yaw twist, diagonal roll, pitch slash)
-                GL11.glRotatef(fSinSq * -25.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(fSinSqrt * -25.0F, 0.0F, 0.0F, 1.0F);
-                GL11.glRotatef(fSinSqrt * -80.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glEnable(GL12.GL_RESCALE_NORMAL);
-            } else {
-                GL11.glTranslatef(0.7F * fScale, -0.65F * fScale - (1.0F - f1) * 0.6F, -0.9F * fScale);
-                GL11.glRotatef(45.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glEnable(GL12.GL_RESCALE_NORMAL);
-
-                float fSwing = entityclientplayermp.getSwingProgress(partialTicks);
-                float fSinSq = MathHelper.sin(fSwing * fSwing * (float) Math.PI);
-                float fSinSqrt = MathHelper.sin(MathHelper.sqrt_float(fSwing) * (float) Math.PI);
-                GL11.glRotatef(-fSinSq * 20.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(-fSinSqrt * 20.0F, 0.0F, 0.0F, 1.0F);
-                GL11.glRotatef(-fSinSqrt * 80.0F, 1.0F, 0.0F, 0.0F);
-            }
+            GL11.glRotatef(f * -20.0F, 0.0F, 1.0F, 0.0F);
+            GL11.glRotatef(f1_sqrt * -20.0F, 0.0F, 0.0F, 1.0F);
+            GL11.glRotatef(f1_sqrt * axePitch, 1.0F, 0.0F, 0.0F);
 
             float fItemScale = 0.4F;
             GL11.glScalef(fItemScale, fItemScale, fItemScale);
@@ -377,9 +404,8 @@ public abstract class MixinItemRenderer {
             GL11.glPopMatrix();
         } else if (!entityclientplayermp.isInvisible()) {
             GL11.glPushMatrix();
-            float fScale = 0.8F;
 
-            if (!Config.enableNewSwingAnimation) {
+            if (!Config.enableNewSwingAnimation || mining) {
                 float fSwing = entityclientplayermp.getSwingProgress(partialTicks);
                 float fSin = MathHelper.sin(fSwing * (float) Math.PI);
                 float fSinSqrt = MathHelper.sin(MathHelper.sqrt_float(fSwing) * (float) Math.PI);
@@ -389,38 +415,17 @@ public abstract class MixinItemRenderer {
                     -fSin * 0.4F);
             }
 
-            if (Config.enableNewSwingAnimation) {
-                float swingProgress = entityclientplayermp.getSwingProgress(partialTicks);
-                float effectiveEquip = swingProgress > 0.0F ? (1.0F - swingProgress * (1.0F - f1)) : f1;
+            GL11.glTranslatef(0.64F, -0.60F + (1.0F - f1) * -0.6F, -0.71999997F);
+            GL11.glRotatef(45.0F, 0.0F, 1.0F, 0.0F);
+            GL11.glEnable(GL12.GL_RESCALE_NORMAL);
 
-                float fSinSq = MathHelper.sin(swingProgress * swingProgress * (float) Math.PI);
-                float fSinSqrt = MathHelper.sin(MathHelper.sqrt_float(swingProgress) * (float) Math.PI);
+            float fSwing = entityclientplayermp.getSwingProgress(partialTicks);
+            float f = MathHelper.sin(fSwing * fSwing * (float) Math.PI);
+            float f1_sqrt = MathHelper.sin(MathHelper.sqrt_float(fSwing) * (float) Math.PI);
 
-                float swingZ = -0.35F * fSinSqrt;
-                float swingX = -0.20F * fSinSqrt;
-
-                GL11.glTranslatef(
-                    0.8F * fScale + swingX,
-                    -0.75F * fScale - (1.0F - effectiveEquip) * 0.6F,
-                    -0.9F * fScale + swingZ);
-                GL11.glRotatef(45.0F, 0.0F, 1.0F, 0.0F);
-
-                GL11.glRotatef(fSinSq * -20.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(fSinSqrt * -20.0F, 0.0F, 0.0F, 1.0F);
-                GL11.glRotatef(fSinSqrt * -70.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glEnable(GL12.GL_RESCALE_NORMAL);
-            } else {
-                GL11.glTranslatef(0.8F * fScale, -0.75F * fScale - (1.0F - f1) * 0.6F, -0.9F * fScale);
-                GL11.glRotatef(45.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glEnable(GL12.GL_RESCALE_NORMAL);
-
-                float fSwing = entityclientplayermp.getSwingProgress(partialTicks);
-                float fSinSq = MathHelper.sin(fSwing * fSwing * (float) Math.PI);
-                float fSinSqrt = MathHelper.sin(MathHelper.sqrt_float(fSwing) * (float) Math.PI);
-                GL11.glRotatef(-fSinSq * 20.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(-fSinSqrt * 20.0F, 0.0F, 0.0F, 1.0F);
-                GL11.glRotatef(-fSinSqrt * 80.0F, 1.0F, 0.0F, 0.0F);
-            }
+            GL11.glRotatef(f * -20.0F, 0.0F, 1.0F, 0.0F);
+            GL11.glRotatef(f1_sqrt * -20.0F, 0.0F, 0.0F, 1.0F);
+            GL11.glRotatef(f1_sqrt * -80.0F, 1.0F, 0.0F, 0.0F);
 
             float fArmScale = 0.4F;
             GL11.glScalef(fArmScale, fArmScale, fArmScale);

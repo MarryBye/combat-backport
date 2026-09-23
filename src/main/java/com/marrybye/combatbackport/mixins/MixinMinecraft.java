@@ -32,15 +32,26 @@ public abstract class MixinMinecraft {
             return;
         }
 
-        // Only reset cooldown on missed swing (air) or when attacking an entity.
-        // Never reset cooldown when mining or interacting with blocks.
+        if (this.objectMouseOver != null
+            && this.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.ENTITY) {
+            ((ICombatPlayer) this.thePlayer).resetAttackCooldown();
+            return;
+        }
+
+        if (this.objectMouseOver != null
+            && this.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
+            com.marrybye.combatbackport.client.ClientMiningHandler.onBlockInteracted();
+            return;
+        }
+
+        // Only reset cooldown on missed swing (air) if air swing cooldown is enabled,
+        // and only if the player didn't recently interact with or destroy a block (e.g. clearing foliage/grass).
         if (this.objectMouseOver == null
             || this.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.MISS) {
-            if (Config.enableAirSwingCooldown) {
+            if (Config.enableAirSwingCooldown
+                && !com.marrybye.combatbackport.client.ClientMiningHandler.isRecentlyInteractedWithBlock()) {
                 ((ICombatPlayer) this.thePlayer).resetAttackCooldown();
             }
-        } else if (this.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.ENTITY) {
-            ((ICombatPlayer) this.thePlayer).resetAttackCooldown();
         }
     }
 }
