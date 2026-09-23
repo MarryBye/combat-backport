@@ -110,8 +110,28 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
     @Override
     public float getAttackCooldownPeriod() {
         float speed = WeaponRegistry.getAttackSpeed(this.getCurrentEquippedItem());
-        if (speed <= 0.0F) {
-            speed = WeaponRegistry.BASE_ATTACK_SPEED;
+
+        // Apply Haste (+10% per level) and Mining Fatigue (-10% per level)
+        float speedMultiplier = 1.0F;
+        if (this.isPotionActive(Potion.digSpeed)) {
+            net.minecraft.potion.PotionEffect haste = this.getActivePotionEffect(Potion.digSpeed);
+            if (haste != null) {
+                speedMultiplier += 0.1F * (float) (haste.getAmplifier() + 1);
+            }
+        }
+        if (this.isPotionActive(Potion.digSlowdown)) {
+            net.minecraft.potion.PotionEffect fatigue = this.getActivePotionEffect(Potion.digSlowdown);
+            if (fatigue != null) {
+                speedMultiplier -= 0.1F * (float) (fatigue.getAmplifier() + 1);
+            }
+        }
+        if (speedMultiplier < 0.1F) {
+            speedMultiplier = 0.1F;
+        }
+        speed *= speedMultiplier;
+
+        if (speed <= 0.1F) {
+            speed = 0.1F;
         }
         return 20.0F / speed;
     }
@@ -129,8 +149,9 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
         }
 
         ItemStack stack = getCurrentEquippedItem();
-        if (stack != null && stack.getItem()
-            .onLeftClickEntity(stack, self, targetEntity)) {
+        if (stack != null && stack.getItem() != null
+            && stack.getItem()
+                .onLeftClickEntity(stack, self, targetEntity)) {
             return;
         }
 
@@ -146,11 +167,13 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
                     i += EnchantmentHelper.getKnockbackModifier(self, (EntityLivingBase) targetEntity);
                 }
 
-                if (this.isSprinting()) {
+                float charge = this.getCooledAttackStrength(0.5F);
+                boolean isFullyCharged = !Config.enableAttackCooldown || charge >= 0.848F;
+
+                if (this.isSprinting() && isFullyCharged) {
                     ++i;
                 }
 
-                float charge = this.getCooledAttackStrength(0.5F);
                 float scaledBaseDamage = f;
                 float scaledEnchantDamage = f1;
 
@@ -160,19 +183,16 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
                 }
 
                 if (scaledBaseDamage > 0.0F || scaledEnchantDamage > 0.0F) {
-                    boolean flag = this.fallDistance > 0.0F && !this.onGround
+                    boolean isCritical = isFullyCharged && this.fallDistance > 0.0F
+                        && !this.onGround
                         && !this.isOnLadder()
                         && !this.isInWater()
                         && !this.isPotionActive(Potion.blindness)
                         && this.ridingEntity == null
+                        && !this.isSprinting()
                         && targetEntity instanceof EntityLivingBase;
 
-                    // Suppress critical hits if attack cooldown is not charged
-                    if (Config.enableAttackCooldown && charge < 0.9F) {
-                        flag = false;
-                    }
-
-                    if (flag && scaledBaseDamage > 0.0F) {
+                    if (isCritical && scaledBaseDamage > 0.0F) {
                         scaledBaseDamage *= 1.5F;
                     }
 
@@ -191,7 +211,7 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
                     if (flag2) {
                         if (i > 0) {
                             float knockbackFactor = (Config.enableAttackCooldown && Config.enableKnockbackScaling
-                                && charge < 0.9F) ? 0.1F : 1.0F;
+                                && !isFullyCharged) ? 0.1F : 1.0F;
                             targetEntity.addVelocity(
                                 (double) (-MathHelper.sin(this.rotationYaw * (float) Math.PI / 180.0F) * (float) i
                                     * 0.5F
@@ -205,16 +225,16 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
                             this.setSprinting(false);
                         }
 
-                        // Modern sweep attack: charge > 0.9, onGround, not sprinting, not critical, sweeping weapon
-                        if (Config.enableSweepAttack && charge > 0.9F
-                            && !flag
+                        // Modern sweep attack: isFullyCharged, onGround, not sprinting, not critical, sweeping weapon
+                        if (Config.enableSweepAttack && isFullyCharged
+                            && !isCritical
                             && !this.isSprinting()
                             && this.onGround
                             && WeaponRegistry.canSweep(stack)) {
                             CombatManager.performSweepAttack(self, targetEntity, stack);
                         }
 
-                        if (flag) {
+                        if (isCritical) {
                             this.onCriticalHit(targetEntity);
                         }
 
