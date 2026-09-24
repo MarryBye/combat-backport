@@ -56,7 +56,8 @@ combat-backport/
 │   │   │   ├── MixinPlayerControllerMP.java      # Отслеживание взаимодействия с блоками
 │   │   │   ├── MixinItemRenderer.java            # Миксин для подъема оружия при КД (1.9+)
 │   │   │   ├── MixinGuiOptionsRowList.java       # Добавление опции в ванильные настройки видео
-│   │   │   └── MixinGuiOptionsRowListRow.java    # Аксессор для строк таблицы настроек
+│   │   │   ├── MixinGuiOptionsRowListRow.java    # Аксессор для строк таблицы настроек
+│   │   │   └── MixinSodiumGameOptionPages.java   # Добавление опции в интерфейс настроек Angelica
 │   │   └── network/
 │   │       ├── CombatPacketHandler.java          # Обработчик сетевого канала SimpleNetworkWrapper
 │   │       ├── PacketSweepAttack.java            # Пакет спавна визуального эффекта свипа
