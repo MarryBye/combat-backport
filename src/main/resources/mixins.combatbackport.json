@@ -10,7 +10,9 @@
   ],
   "client": [
     "MixinMinecraft",
+    "MixinPlayerControllerMP",
     "MixinItemRenderer",
-    "MixinPlayerControllerMP"
+    "MixinGuiOptionsRowList",
+    "MixinGuiOptionsRowListRow"
   ]
 }

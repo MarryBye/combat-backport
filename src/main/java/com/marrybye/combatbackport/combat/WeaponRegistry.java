@@ -23,7 +23,7 @@ import cpw.mods.fml.common.registry.GameRegistry;
 
 public class WeaponRegistry {
 
-    public static final float BASE_ATTACK_SPEED = 2.5F; // Hand / generic speed (8 ticks cooldown = 0.4s)
+    public static final float BASE_ATTACK_SPEED = 4.0F; // Hand / generic speed (5 ticks cooldown = 0.25s)
 
     private static final Map<Item, Float> CACHED_SPEEDS = new HashMap<>();
     private static final Map<Item, Boolean> CACHED_SWEEP = new HashMap<>();

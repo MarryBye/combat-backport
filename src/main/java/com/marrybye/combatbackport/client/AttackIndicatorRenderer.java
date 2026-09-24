@@ -89,7 +89,7 @@ public class AttackIndicatorRenderer {
 
         if (charge < 1.0F) {
             int x = centerX - 8;
-            int y = centerY + 4;
+            int y = centerY + 9;
 
             // 1. Draw genuine background (16x4)
             mc.getTextureManager()
@@ -111,7 +111,7 @@ public class AttackIndicatorRenderer {
                 && mop.entityHit instanceof EntityLivingBase
                 && ((EntityLivingBase) mop.entityHit).isEntityAlive()) {
                 int x = centerX - 8;
-                int y = centerY + 4;
+                int y = centerY + 9;
                 mc.getTextureManager()
                     .bindTexture(CROSSHAIR_FULL);
                 drawTexturedQuad(x, y, 16, 16, 0.0F, 0.0F, 1.0F, 1.0F);

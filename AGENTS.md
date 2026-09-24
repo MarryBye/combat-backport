@@ -43,21 +43,29 @@ combat-backport/
 │   │   │   └── WeaponRegistry.java               # Реестр скоростей оружия, эвристики и TiC
 │   │   ├── client/
 │   │   │   ├── AttackIndicatorRenderer.java      # Рендеринг индикатора атаки (HUD, учет F1)
+│   │   │   ├── ClientMiningHandler.java          # Определение контекста копания блоков
 │   │   │   ├── TooltipHandler.java               # Отображение скорости атаки в тултипах
 │   │   │   ├── AngelicaIntegration.java          # Интеграция настроек видео Angelica
+│   │   │   ├── gui/
+│   │   │   │   └── GuiButtonAttackIndicator.java # Кнопка переключения режима индикатора
 │   │   │   └── particle/
 │   │   │       └── EntitySweepFX.java            # Кастомный рендер партиклов размашистого удара
 │   │   ├── mixins/
 │   │   │   ├── MixinEntityPlayer.java            # Миксин для кулдауна, урона, критов и свипа
 │   │   │   ├── MixinMinecraft.java               # Миксин для сброса КД при ударе/промахе
-│   │   │   └── MixinItemRenderer.java            # Миксин для анимации подъема оружия 1.9+
+│   │   │   ├── MixinPlayerControllerMP.java      # Отслеживание взаимодействия с блоками
+│   │   │   ├── MixinItemRenderer.java            # Миксин для подъема оружия при КД (1.9+)
+│   │   │   ├── MixinGuiOptionsRowList.java       # Добавление опции в ванильные настройки видео
+│   │   │   └── MixinGuiOptionsRowListRow.java    # Аксессор для строк таблицы настроек
 │   │   └── network/
 │   │       ├── CombatPacketHandler.java          # Обработчик сетевого канала SimpleNetworkWrapper
-│   │       └── PacketSweepAttack.java            # Пакет спавна визуального эффекта свипа
+│   │       ├── PacketSweepAttack.java            # Пакет спавна визуального эффекта свипа
+│   │       └── PacketResetCooldown.java          # Пакет сброса КД на сервере при промахе
 │   └── resources/
 │       ├── mcmod.info                            # Метаданные мода для FML
 │       ├── mixins.combatbackport.json            # Конфигурация UniMixins
 │       └── assets/combatbackport/
+│           ├── lang/                             # Локализации (en_US, ru_RU)
 │           ├── sounds.json                       # Регистрация звуков свип-атаки
 │           ├── sounds/player/attack/sweep*.ogg   # Аутентичные звуковые файлы атаки
 │           └── textures/
