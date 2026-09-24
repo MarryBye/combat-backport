@@ -46,19 +46,25 @@ public abstract class MixinItemRenderer {
 
         EntityClientPlayerMP player = this.mc.thePlayer;
         ItemStack currentItem = player.inventory.getCurrentItem();
-        boolean sameItem = (this.equippedItemSlot == player.inventory.currentItem && currentItem == this.itemToRender);
+        int currentSlot = player.inventory.currentItem;
+
+        boolean sameItem = (this.equippedItemSlot == currentSlot && currentItem == this.itemToRender);
 
         if (this.itemToRender == null && currentItem == null) {
             sameItem = true;
         }
 
-        if (currentItem != null && this.itemToRender != null
-            && currentItem != this.itemToRender
-            && currentItem.getItem() == this.itemToRender.getItem()
-            && currentItem.getItemDamage() == this.itemToRender.getItemDamage()
-            && ItemStack.areItemStackTagsEqual(currentItem, this.itemToRender)) {
-            this.itemToRender = currentItem;
-            sameItem = true;
+        // If the player is on the same hotbar slot, update itemToRender without triggering slot re-equip
+        if (currentItem != null && this.itemToRender != null && currentItem != this.itemToRender) {
+            if (this.equippedItemSlot == currentSlot) {
+                this.itemToRender = currentItem;
+                sameItem = true;
+            } else if (currentItem.getItem() == this.itemToRender.getItem()
+                && currentItem.getItemDamage() == this.itemToRender.getItemDamage()
+                && ItemStack.areItemStackTagsEqual(currentItem, this.itemToRender)) {
+                    this.itemToRender = currentItem;
+                    sameItem = true;
+                }
         }
 
         float targetProgress = 0.0F;
@@ -78,7 +84,7 @@ public abstract class MixinItemRenderer {
 
         if (this.equippedProgress < 0.1F) {
             this.itemToRender = currentItem;
-            this.equippedItemSlot = player.inventory.currentItem;
+            this.equippedItemSlot = currentSlot;
         }
 
         ci.cancel();

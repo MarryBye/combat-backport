@@ -37,7 +37,7 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
     public abstract ItemStack getCurrentEquippedItem();
 
     @Unique
-    private int combatbackport$ticksSinceLastSwing;
+    private int combatbackport$ticksSinceLastSwing = 1000;
 
     @Unique
     private int combatbackport$lastSelectedSlot = -1;
@@ -48,7 +48,14 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
 
     @Unique
     private void combatbackport$checkSlotChange() {
-        if (Config.enableItemSwitchCooldown && this.inventory != null) {
+        if (this.inventory == null) {
+            return;
+        }
+        if (this.combatbackport$lastSelectedSlot == -1) {
+            this.combatbackport$lastSelectedSlot = this.inventory.currentItem;
+            return;
+        }
+        if (Config.enableItemSwitchCooldown) {
             if (this.combatbackport$lastSelectedSlot != this.inventory.currentItem) {
                 this.combatbackport$lastSelectedSlot = this.inventory.currentItem;
                 this.combatbackport$ticksSinceLastSwing = 0;
@@ -67,7 +74,6 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
         if (!Config.enableAttackCooldown) {
             return 1.0F;
         }
-        this.combatbackport$checkSlotChange();
         float period = getAttackCooldownPeriod();
         float charge = ((float) this.combatbackport$ticksSinceLastSwing + adjustTicks) / period;
         return MathHelper.clamp_float(charge, 0.0F, 1.0F);
