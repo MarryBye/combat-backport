@@ -1,1 +1,7 @@
 attribute.name.generic.attackSpeed=Attack Speed
+options.combatbackport.attackIndicator=Attack Indicator
+options.combatbackport.crosshair=Crosshair
+options.combatbackport.hotbar=Hotbar
+options.attackIndicator=Attack Indicator
+options.attack.crosshair=Crosshair
+options.attack.hotbar=Hotbar

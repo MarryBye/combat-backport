@@ -12,6 +12,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.marrybye.combatbackport.Config;
 import com.marrybye.combatbackport.api.ICombatPlayer;
+import com.marrybye.combatbackport.client.ClientMiningHandler;
+import com.marrybye.combatbackport.network.CombatPacketHandler;
+import com.marrybye.combatbackport.network.PacketResetCooldown;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -34,13 +37,13 @@ public abstract class MixinMinecraft {
 
         if (this.objectMouseOver != null
             && this.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.ENTITY) {
-            ((ICombatPlayer) this.thePlayer).resetAttackCooldown();
+            // Cooldown is evaluated during attackTargetEntityWithCurrentItem and reset at @At("RETURN")
             return;
         }
 
         if (this.objectMouseOver != null
             && this.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
-            com.marrybye.combatbackport.client.ClientMiningHandler.onBlockInteracted();
+            ClientMiningHandler.onBlockInteracted();
             return;
         }
 
@@ -48,9 +51,9 @@ public abstract class MixinMinecraft {
         // and only if the player didn't recently interact with or destroy a block (e.g. clearing foliage/grass).
         if (this.objectMouseOver == null
             || this.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.MISS) {
-            if (Config.enableAirSwingCooldown
-                && !com.marrybye.combatbackport.client.ClientMiningHandler.isRecentlyInteractedWithBlock()) {
+            if (Config.enableAirSwingCooldown && !ClientMiningHandler.isRecentlyInteractedWithBlock()) {
                 ((ICombatPlayer) this.thePlayer).resetAttackCooldown();
+                CombatPacketHandler.INSTANCE.sendToServer(new PacketResetCooldown());
             }
         }
     }

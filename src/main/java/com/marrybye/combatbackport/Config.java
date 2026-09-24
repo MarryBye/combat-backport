@@ -21,7 +21,7 @@ public class Config {
     public static boolean enableKnockbackScaling = true;
     public static boolean enableAirSwingCooldown = true;
     public static boolean enableItemSwitchCooldown = true;
-    public static boolean enableNewSwingAnimation = true;
+    public static boolean enableItemReequipAnimation = true;
 
     // Custom items configuration
     public static String[] customWeaponSpeeds = new String[] {
@@ -84,11 +84,11 @@ public class Config {
             enableItemSwitchCooldown,
             "Reset attack cooldown when switching active hotbar item.");
 
-        enableNewSwingAnimation = configuration.getBoolean(
-            "enableNewSwingAnimation",
+        enableItemReequipAnimation = configuration.getBoolean(
+            "enableItemReequipAnimation",
             "client",
-            enableNewSwingAnimation,
-            "Enable modern 1.9+ diagonal swing animation for weapons and tools.");
+            enableItemReequipAnimation,
+            "Enable modern 1.9+ item re-equip rising animation based on attack cooldown.");
 
         customWeaponSpeeds = configuration.getStringList(
             "customWeaponSpeeds",
