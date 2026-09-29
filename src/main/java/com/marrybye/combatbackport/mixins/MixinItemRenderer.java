@@ -94,4 +94,16 @@ public abstract class MixinItemRenderer {
 
         ci.cancel();
     }
+
+    @org.spongepowered.asm.mixin.injection.Redirect(
+        method = "renderItemInFirstPerson",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/item/ItemStack;getItemUseAction()Lnet/minecraft/item/EnumAction;"))
+    private net.minecraft.item.EnumAction combatbackport$suppressSwordBlockForShield(ItemStack stack) {
+        if (stack != null && stack.getItem() instanceof com.marrybye.combatbackport.combat.item.ItemShield) {
+            return net.minecraft.item.EnumAction.none;
+        }
+        return stack != null ? stack.getItemUseAction() : net.minecraft.item.EnumAction.none;
+    }
 }

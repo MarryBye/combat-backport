@@ -1,6 +1,7 @@
 package com.marrybye.combatbackport.client.renderer;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -41,6 +42,9 @@ public class ShieldItemRenderer implements IItemRenderer {
         if (type == ItemRenderType.ENTITY) {
             return helper == ItemRendererHelper.ENTITY_ROTATION || helper == ItemRendererHelper.ENTITY_BOBBING;
         }
+        if (type == ItemRenderType.EQUIPPED || type == ItemRenderType.EQUIPPED_FIRST_PERSON) {
+            return helper == ItemRendererHelper.EQUIPPED_BLOCK;
+        }
         return false;
     }
 
@@ -64,39 +68,52 @@ public class ShieldItemRenderer implements IItemRenderer {
 
         if (type == ItemRenderType.INVENTORY) {
             GL11.glPushMatrix();
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+            GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
+            GL11.glEnable(GL11.GL_BLEND);
+            OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0);
+
             GL11.glEnable(GL11.GL_DEPTH_TEST);
             GL11.glEnable(GL11.GL_LIGHTING);
             GL11.glEnable(GL12.GL_RESCALE_NORMAL);
             RenderHelper.enableGUIStandardItemLighting();
 
-            // Center of the 16x16 inventory slot
-            GL11.glTranslatef(8.0F, 8.0F, 100.0F);
+            // Centered vertically and horizontally in 16x16 inventory slot
+            GL11.glTranslatef(8.5F, 9.0F, 50.0F);
 
-            // Scale to fit 16x16 slot nicely (model plate height is 22)
-            GL11.glScalef(10.0F, 10.0F, 10.0F);
+            // Scale: 7.5F (model height is 22 * 0.0625 * 7.5 = 10.3 pixels, fits perfectly in 16x16 slot)
+            GL11.glScalef(7.5F, 7.5F, 7.5F);
 
-            // Mojang authentic display settings from shield.json:
-            // "gui": { "rotation": [ 15, -25, -5 ], "translation": [ 2, 3, 0 ], "scale": [ 0.65, 0.65, 0.65 ] }
-            GL11.glTranslatef(2.0F / 16.0F, -3.0F / 16.0F, 0.0F);
+            // Mojang authentic GUI display rotation from shield.json:
             GL11.glRotatef(15.0F, 1.0F, 0.0F, 0.0F);
             GL11.glRotatef(-25.0F, 0.0F, 1.0F, 0.0F);
             GL11.glRotatef(-5.0F, 0.0F, 0.0F, 1.0F);
 
-            // ModelBase renders Y downwards and Z backwards -> invert Y and Z like vanilla 1.12 TEISR
-            GL11.glScalef(1.0F, -1.0F, -1.0F);
+            // Upright rotation without negative scaling to keep proper lighting & normals
+            GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
 
             model.render();
 
             RenderHelper.disableStandardItemLighting();
             GL11.glDisable(GL11.GL_LIGHTING);
             GL11.glDisable(GL12.GL_RESCALE_NORMAL);
+            GL11.glDisable(GL11.GL_BLEND);
             GL11.glPopMatrix();
             return;
         }
 
         GL11.glPushMatrix();
 
+        // Alpha testing and blending so handle hole is transparent
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
+        GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
+        GL11.glEnable(GL11.GL_BLEND);
+        OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0);
+
         if (type == ItemRenderType.EQUIPPED_FIRST_PERSON) {
+            // Undo Forge EQUIPPED_BLOCK translation (-0.5, -0.5, -0.5) to reach exact hand pivot
+            GL11.glTranslatef(0.5F, 0.5F, 0.5F);
+
             EntityLivingBase entity = data.length > 1 && data[1] instanceof EntityLivingBase
                 ? (EntityLivingBase) data[1]
                 : Minecraft.getMinecraft().thePlayer;
@@ -109,32 +126,31 @@ public class ShieldItemRenderer implements IItemRenderer {
             }
 
             if (isBlocking) {
-                // Counteract vanilla 1.7.10 sword block rotations in reverse order
-                GL11.glRotatef(-60.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(80.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glRotatef(-30.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glTranslatef(0.5F, -0.2F, 0.0F);
-
-                // Authentic 1.9+ firstperson blocking pose: held upright guarding the face
-                GL11.glTranslatef(-0.25F, 0.25F, -0.25F);
-                GL11.glRotatef(-15.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(5.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glRotatef(-5.0F, 0.0F, 0.0F, 1.0F);
-                GL11.glScalef(1.1F, 1.1F, 1.1F);
-            } else {
-                // Authentic 1.9+ firstperson idle pose: lowered, slightly angled at side
-                GL11.glTranslatef(0.25F, -0.15F, 0.0F);
-                GL11.glRotatef(-20.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(10.0F, 1.0F, 0.0F, 0.0F);
+                // Authentic 1.9+ firstperson blocking pose:
+                // Raised directly in front of the player's face, facing forward towards the crosshair
+                GL11.glTranslatef(-0.55F, 0.35F, -0.35F);
+                GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
+                GL11.glRotatef(-45.0F, 0.0F, 1.0F, 0.0F);
+                GL11.glRotatef(-8.0F, 1.0F, 0.0F, 0.0F);
                 GL11.glRotatef(5.0F, 0.0F, 0.0F, 1.0F);
-                GL11.glScalef(0.95F, 0.95F, 0.95F);
+                GL11.glScalef(0.75F, 0.75F, 0.75F);
+            } else {
+                // Authentic 1.9+ firstperson idle pose:
+                // Held clearly visible in the lower right area of the screen, upright
+                GL11.glTranslatef(0.1F, -0.4F, -0.1F);
+                GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
+                GL11.glRotatef(-25.0F, 0.0F, 1.0F, 0.0F);
+                GL11.glRotatef(-15.0F, 1.0F, 0.0F, 0.0F);
+                GL11.glRotatef(10.0F, 0.0F, 0.0F, 1.0F);
+                GL11.glScalef(0.65F, 0.65F, 0.65F);
             }
 
-            // Invert Y and Z for ModelShield
-            GL11.glScalef(1.0F, -1.0F, -1.0F);
             model.render();
 
         } else if (type == ItemRenderType.EQUIPPED) {
+            // Undo Forge EQUIPPED_BLOCK translation (-0.5, -0.5, -0.5) to reach arm pivot
+            GL11.glTranslatef(0.5F, 0.5F, 0.5F);
+
             EntityLivingBase entity = data.length > 1 && data[1] instanceof EntityLivingBase
                 ? (EntityLivingBase) data[1]
                 : null;
@@ -146,27 +162,29 @@ public class ShieldItemRenderer implements IItemRenderer {
                         .getItem() instanceof ItemShield));
             }
 
+            GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
             if (isBlocking) {
-                // 3rd person blocking: strapped across chest facing outward
-                GL11.glTranslatef(0.1F, 0.3F, -0.15F);
-                GL11.glRotatef(50.0F, 0.0F, 1.0F, 0.0F);
+                // 3rd person blocking: held across chest facing outward
+                GL11.glTranslatef(0.0F, 0.2F, -0.15F);
+                GL11.glRotatef(80.0F, 0.0F, 1.0F, 0.0F);
                 GL11.glRotatef(-15.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glScalef(0.75F, -0.75F, -0.75F);
             } else {
-                // 3rd person idle: strapped to forearm facing side
-                GL11.glTranslatef(0.1F, 0.35F, 0.05F);
+                // 3rd person idle: strapped to outer forearm
+                GL11.glTranslatef(0.0F, 0.15F, 0.0F);
                 GL11.glRotatef(90.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glScalef(0.75F, -0.75F, -0.75F);
             }
+            GL11.glScalef(0.65F, 0.65F, 0.65F);
 
             model.render();
 
         } else if (type == ItemRenderType.ENTITY) {
-            GL11.glTranslatef(0.0F, 0.5F, 0.0F);
-            GL11.glScalef(0.6F, -0.6F, -0.6F);
+            GL11.glTranslatef(0.0F, 0.35F, 0.0F);
+            GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
+            GL11.glScalef(0.5F, 0.5F, 0.5F);
             model.render();
         }
 
+        GL11.glDisable(GL11.GL_BLEND);
         GL11.glPopMatrix();
     }
 }
