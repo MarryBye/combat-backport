@@ -114,6 +114,9 @@ public class ShieldItemRenderer implements IItemRenderer {
             // Undo Forge EQUIPPED_BLOCK translation (-0.5, -0.5, -0.5) to reach exact hand pivot
             GL11.glTranslatef(0.5F, 0.5F, 0.5F);
 
+            // Undo ItemRenderer's glRotatef(45.0F, 0.0F, 1.0F, 0.0F) immediately to restore camera-aligned axes
+            GL11.glRotatef(-45.0F, 0.0F, 1.0F, 0.0F);
+
             EntityLivingBase entity = data.length > 1 && data[1] instanceof EntityLivingBase
                 ? (EntityLivingBase) data[1]
                 : Minecraft.getMinecraft().thePlayer;
@@ -128,28 +131,37 @@ public class ShieldItemRenderer implements IItemRenderer {
             if (isBlocking) {
                 // Authentic 1.9+ firstperson blocking pose:
                 // Raised directly in front of the player's face, facing forward towards the crosshair
-                GL11.glTranslatef(-0.55F, 0.35F, -0.35F);
-                GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glRotatef(-45.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(-8.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glRotatef(5.0F, 0.0F, 0.0F, 1.0F);
-                GL11.glScalef(0.75F, 0.75F, 0.75F);
+                GL11.glTranslatef(-1.25F, 0.70F, 0.30F);
+                GL11.glRotatef(-5.0F, 1.0F, 0.0F, 0.0F);
+                GL11.glRotatef(10.0F, 0.0F, 1.0F, 0.0F);
+                GL11.glRotatef(180.0F, 0.0F, 0.0F, 1.0F);
+                GL11.glScalef(2.6F, 2.6F, 2.6F);
             } else {
                 // Authentic 1.9+ firstperson idle pose:
                 // Held clearly visible in the lower right area of the screen, upright
-                GL11.glTranslatef(0.1F, -0.4F, -0.1F);
-                GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glRotatef(-25.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(-15.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glRotatef(10.0F, 0.0F, 0.0F, 1.0F);
-                GL11.glScalef(0.65F, 0.65F, 0.65F);
+                GL11.glTranslatef(-0.15F, -0.10F, 0.10F);
+                GL11.glRotatef(15.0F, 1.0F, 0.0F, 0.0F);
+                GL11.glRotatef(25.0F, 0.0F, 1.0F, 0.0F);
+                GL11.glRotatef(180.0F, 0.0F, 0.0F, 1.0F);
+                GL11.glScalef(2.4F, 2.4F, 2.4F);
             }
 
             model.render();
 
         } else if (type == ItemRenderType.EQUIPPED) {
-            // Undo Forge EQUIPPED_BLOCK translation (-0.5, -0.5, -0.5) to reach arm pivot
+            // Undo Forge EQUIPPED_BLOCK translation (-0.5, -0.5, -0.5) to reach 2D item anchor
             GL11.glTranslatef(0.5F, 0.5F, 0.5F);
+
+            // Undo RenderBiped flat 2D item rotations in exact reverse order
+            GL11.glRotatef(-20.0F, 0.0F, 0.0F, 1.0F);
+            GL11.glRotatef(90.0F, 1.0F, 0.0F, 0.0F);
+            GL11.glRotatef(-60.0F, 0.0F, 0.0F, 1.0F);
+
+            // Undo RenderBiped 0.375F scale factor
+            GL11.glScalef(1.0F / 0.375F, 1.0F / 0.375F, 1.0F / 0.375F);
+
+            // Undo RenderBiped flat 2D item translation to return to exact bipedRightArm forearm pivot
+            GL11.glTranslatef(-0.25F, -0.1875F, 0.1875F);
 
             EntityLivingBase entity = data.length > 1 && data[1] instanceof EntityLivingBase
                 ? (EntityLivingBase) data[1]
@@ -162,25 +174,25 @@ public class ShieldItemRenderer implements IItemRenderer {
                         .getItem() instanceof ItemShield));
             }
 
-            GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
             if (isBlocking) {
-                // 3rd person blocking: held across chest facing outward
-                GL11.glTranslatef(0.0F, 0.2F, -0.15F);
-                GL11.glRotatef(80.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(-15.0F, 1.0F, 0.0F, 0.0F);
+                // 3rd person blocking: held across chest facing forward against attacks
+                GL11.glTranslatef(0.1F, -0.05F, -0.15F);
+                GL11.glRotatef(55.0F, 1.0F, 0.0F, 0.0F);
+                GL11.glRotatef(20.0F, 0.0F, 1.0F, 0.0F);
+                GL11.glRotatef(-20.0F, 0.0F, 0.0F, 1.0F);
             } else {
-                // 3rd person idle: strapped to outer forearm
-                GL11.glTranslatef(0.0F, 0.15F, 0.0F);
+                // 3rd person idle: strapped to outer side of forearm
+                // Plate faces outwards to the right (+90 yaw), top points up towards elbow/shoulder
+                GL11.glTranslatef(-0.02F, -0.05F, 0.0F);
                 GL11.glRotatef(90.0F, 0.0F, 1.0F, 0.0F);
             }
-            GL11.glScalef(0.65F, 0.65F, 0.65F);
 
             model.render();
 
         } else if (type == ItemRenderType.ENTITY) {
             GL11.glTranslatef(0.0F, 0.35F, 0.0F);
-            GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
-            GL11.glScalef(0.5F, 0.5F, 0.5F);
+            GL11.glRotatef(180.0F, 0.0F, 0.0F, 1.0F);
+            GL11.glScalef(0.8F, 0.8F, 0.8F);
             model.render();
         }
 
