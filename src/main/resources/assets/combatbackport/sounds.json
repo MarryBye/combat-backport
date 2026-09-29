@@ -10,5 +10,15 @@
       "combatbackport:player/attack/sweep6",
       "combatbackport:player/attack/sweep7"
     ]
+  },
+  "item.shield.block": {
+    "category": "player",
+    "sounds": [
+      "combatbackport:item/shield/block1",
+      "combatbackport:item/shield/block2",
+      "combatbackport:item/shield/block3",
+      "combatbackport:item/shield/block4",
+      "combatbackport:item/shield/block5"
+    ]
   }
 }

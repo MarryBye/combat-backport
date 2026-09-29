@@ -212,6 +212,12 @@ public class CombatManager {
             return;
         }
 
+        // Prevent repeated attacks every tick when blocking
+        if (player.hurtResistantTime > player.maxHurtResistantTime / 2.0F) {
+            event.setCanceled(true);
+            return;
+        }
+
         // Damage shield item (1 point per blocked hit, or based on damage)
         int shieldDmg = Math.max(1, (int) event.ammount);
         shield.damageItem(shieldDmg, player);
@@ -220,8 +226,15 @@ public class CombatManager {
             player.clearItemInUse();
         }
 
-        // Sound effect for shield block
-        player.worldObj.playSoundAtEntity(player, "random.anvil_land", 0.4F, 1.4F);
+        // Authentic sound effect for shield block
+        player.worldObj.playSoundAtEntity(
+            player,
+            "combatbackport:item.shield.block",
+            1.0F,
+            0.8F + player.worldObj.rand.nextFloat() * 0.4F);
+
+        // Set hurt resistance window (20 ticks = 1 second) to match vanilla 1.9+
+        player.hurtResistantTime = player.maxHurtResistantTime;
 
         // Deflect projectile
         if (event.source.isProjectile() && event.source.getSourceOfDamage() != null) {
@@ -246,13 +259,17 @@ public class CombatManager {
                     disableShield(player, 100); // 5 seconds
                 }
             }
+
+            // Knock back the attacker away from the shield (1.9+ mechanic)
+            livingAttacker
+                .knockBack(player, 0.5F, player.posX - livingAttacker.posX, player.posZ - livingAttacker.posZ);
         }
 
         // Slight knockback to player from impact
         if (attacker != null) {
             double dx = attacker.posX - player.posX;
             double dz = attacker.posZ - player.posZ;
-            player.knockBack(attacker, 0.0F, -dx, -dz);
+            player.knockBack(attacker, 0.1F, -dx, -dz);
         }
 
         // Completely negate the blocked damage
