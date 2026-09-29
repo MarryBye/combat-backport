@@ -60,6 +60,37 @@ public class ShieldItemRenderer implements IItemRenderer {
         return SHIELD_NOPATTERN_TEXTURE;
     }
 
+    private static final java.nio.FloatBuffer COLOR_BUFFER = net.minecraft.client.renderer.GLAllocation
+        .createDirectFloatBuffer(16);
+
+    private static java.nio.FloatBuffer colorBuffer(float r, float g, float b, float a) {
+        COLOR_BUFFER.clear();
+        COLOR_BUFFER.put(r)
+            .put(g)
+            .put(b)
+            .put(a);
+        COLOR_BUFFER.flip();
+        return COLOR_BUFFER;
+    }
+
+    private static void enableShieldGuiLighting() {
+        GL11.glEnable(GL11.GL_LIGHTING);
+        GL11.glEnable(GL11.GL_LIGHT0);
+        GL11.glDisable(GL11.GL_LIGHT1);
+        GL11.glEnable(GL11.GL_COLOR_MATERIAL);
+        GL11.glColorMaterial(GL11.GL_FRONT_AND_BACK, GL11.GL_AMBIENT_AND_DIFFUSE);
+
+        // Directional front-light (from camera/viewer) matching Minecraft's "gui_light": "front"
+        GL11.glLight(GL11.GL_LIGHT0, GL11.GL_POSITION, colorBuffer(-0.2F, -0.3F, 1.0F, 0.0F));
+        GL11.glLight(GL11.GL_LIGHT0, GL11.GL_DIFFUSE, colorBuffer(0.35F, 0.35F, 0.35F, 1.0F));
+        GL11.glLight(GL11.GL_LIGHT0, GL11.GL_AMBIENT, colorBuffer(0.0F, 0.0F, 0.0F, 1.0F));
+        GL11.glLight(GL11.GL_LIGHT0, GL11.GL_SPECULAR, colorBuffer(0.0F, 0.0F, 0.0F, 1.0F));
+
+        GL11.glShadeModel(GL11.GL_FLAT);
+        // High ambient light (0.8) ensures vivid textures and prevents dark shadows
+        GL11.glLightModel(GL11.GL_LIGHT_MODEL_AMBIENT, colorBuffer(0.8F, 0.8F, 0.8F, 1.0F));
+    }
+
     @Override
     public void renderItem(ItemRenderType type, ItemStack item, Object... data) {
         Minecraft.getMinecraft()
@@ -74,29 +105,31 @@ public class ShieldItemRenderer implements IItemRenderer {
             OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0);
 
             GL11.glEnable(GL11.GL_DEPTH_TEST);
-            GL11.glEnable(GL11.GL_LIGHTING);
+            GL11.glDisable(GL11.GL_CULL_FACE);
             GL11.glEnable(GL12.GL_RESCALE_NORMAL);
-            RenderHelper.enableGUIStandardItemLighting();
 
-            // Centered vertically and horizontally in 16x16 inventory slot
-            GL11.glTranslatef(8.5F, 9.0F, 50.0F);
+            // Front GUI lighting so the shield is properly bright and not obscured by dark shadows
+            enableShieldGuiLighting();
+            GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
 
-            // Scale: 7.5F (model height is 22 * 0.0625 * 7.5 = 10.3 pixels, fits perfectly in 16x16 slot)
-            GL11.glScalef(7.5F, 7.5F, 7.5F);
+            // Centered in 16x16 inventory slot
+            GL11.glTranslatef(7.5F, 7.5F, 50.0F);
 
-            // Mojang authentic GUI display rotation from shield.json:
-            GL11.glRotatef(15.0F, 1.0F, 0.0F, 0.0F);
+            // Scale: model height is 22 * 0.0625 * 10.8 = 14.85 pixels (fits 16x16 slot like authentic shield sprite)
+            GL11.glScalef(10.8F, 10.8F, 10.8F);
+
+            // Mojang authentic GUI display rotation for 2D GUI coordinates:
+            GL11.glRotatef(-15.0F, 1.0F, 0.0F, 0.0F);
             GL11.glRotatef(-25.0F, 0.0F, 1.0F, 0.0F);
-            GL11.glRotatef(-5.0F, 0.0F, 0.0F, 1.0F);
-
-            // Upright rotation without negative scaling to keep proper lighting & normals
-            GL11.glRotatef(180.0F, 1.0F, 0.0F, 0.0F);
+            GL11.glRotatef(5.0F, 0.0F, 0.0F, 1.0F);
+            GL11.glScalef(1.0F, 1.0F, -1.0F);
 
             model.render();
 
             RenderHelper.disableStandardItemLighting();
             GL11.glDisable(GL11.GL_LIGHTING);
             GL11.glDisable(GL12.GL_RESCALE_NORMAL);
+            GL11.glEnable(GL11.GL_CULL_FACE);
             GL11.glDisable(GL11.GL_BLEND);
             GL11.glPopMatrix();
             return;
@@ -130,19 +163,19 @@ public class ShieldItemRenderer implements IItemRenderer {
 
             if (isBlocking) {
                 // Authentic 1.9+ firstperson blocking pose:
-                // Raised directly in front of the player's face, facing forward towards the crosshair
-                GL11.glTranslatef(-1.25F, 0.70F, 0.30F);
-                GL11.glRotatef(-5.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glRotatef(10.0F, 0.0F, 1.0F, 0.0F);
+                // Held directly in front of the player, lowered so it doesn't block the crosshair, facing straight
+                // forward
+                GL11.glTranslatef(-1.20F, 0.12F, 0.25F);
+                GL11.glRotatef(-3.0F, 0.0F, 0.0F, 1.0F);
                 GL11.glRotatef(180.0F, 0.0F, 0.0F, 1.0F);
-                GL11.glScalef(2.6F, 2.6F, 2.6F);
+                GL11.glScalef(2.5F, 2.5F, 2.5F);
             } else {
                 // Authentic 1.9+ firstperson idle pose:
-                // Held clearly visible in the lower right area of the screen, upright
-                GL11.glTranslatef(-0.15F, -0.10F, 0.10F);
-                GL11.glRotatef(15.0F, 1.0F, 0.0F, 0.0F);
-                GL11.glRotatef(25.0F, 0.0F, 1.0F, 0.0F);
-                GL11.glRotatef(180.0F, 0.0F, 0.0F, 1.0F);
+                // Lowered down in hand, facing straight forward towards the world (not heavily tilted)
+                GL11.glTranslatef(-0.12F, -0.32F, 0.12F);
+                GL11.glRotatef(2.0F, 1.0F, 0.0F, 0.0F);
+                GL11.glRotatef(4.0F, 0.0F, 1.0F, 0.0F);
+                GL11.glRotatef(184.0F, 0.0F, 0.0F, 1.0F);
                 GL11.glScalef(2.4F, 2.4F, 2.4F);
             }
 
