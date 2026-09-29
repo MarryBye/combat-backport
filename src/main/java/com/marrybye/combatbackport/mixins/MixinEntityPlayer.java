@@ -42,6 +42,9 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
     @Unique
     private int combatbackport$lastSelectedSlot = -1;
 
+    @Unique
+    private int combatbackport$shieldCooldown = 0;
+
     public MixinEntityPlayer(World world) {
         super(world);
     }
@@ -66,6 +69,9 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
     @Inject(method = "onUpdate", at = @At("HEAD"))
     private void combatbackport$onPlayerUpdate(CallbackInfo ci) {
         this.combatbackport$ticksSinceLastSwing++;
+        if (this.combatbackport$shieldCooldown > 0) {
+            this.combatbackport$shieldCooldown--;
+        }
         this.combatbackport$checkSlotChange();
     }
 
@@ -220,11 +226,16 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
             && isFullyCharged
             && target instanceof EntityLivingBase;
 
+        boolean isStandingOrSneaking = this.isSneaking() || (this.onGround && Math.abs(this.posX - this.prevPosX) < 0.01
+            && Math.abs(this.posZ - this.prevPosZ) < 0.01
+            && (this.distanceWalkedModified - this.prevDistanceWalkedModified) <= 0.001);
+
         ItemStack stack = this.getCurrentEquippedItem();
         boolean canSweep = Config.enableSweepAttack && isFullyCharged
             && !isCritical
             && !this.isSprinting()
             && this.onGround
+            && isStandingOrSneaking
             && WeaponRegistry.canSweep(stack);
 
         CombatBackport.LOG.info(
@@ -250,5 +261,15 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
     @Inject(method = "attackTargetEntityWithCurrentItem", at = @At("RETURN"))
     private void combatbackport$afterAttack(Entity targetEntity, CallbackInfo ci) {
         this.resetAttackCooldown();
+    }
+
+    @Override
+    public int getShieldCooldown() {
+        return this.combatbackport$shieldCooldown;
+    }
+
+    @Override
+    public void setShieldCooldown(int ticks) {
+        this.combatbackport$shieldCooldown = ticks;
     }
 }

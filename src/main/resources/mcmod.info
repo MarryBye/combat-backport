@@ -10,11 +10,11 @@
 		"updateUrl": "",
 		"authorList": ["MarryBye + Gemini AI"],
 		"credits": "MarryBye, Gemini AI, GTNH Team",
-		"logoFile": "",
+		"logoFile": "logo.png",
 		"screenshots": [],
 		"parent": "",
 		"requiredMods": [],
-		"dependencies": [],
+		"dependencies": ["angelica", "backhand"],
 		"dependants": [],
 		"useDependencyInformation": false
 	}]

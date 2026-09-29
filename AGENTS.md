@@ -25,10 +25,13 @@ combat-backport/
 │       └── client-testing/
 │           └── SKILL.md                          # Процесс тестирования и верификации клиента
 ├── libs/                                         # Dev-зависимости мода
-│   ├── +unimixins-all-1.7.10-*.jar               # Миксины для Forge 1.7.10 (UniMixins)
-│   ├── angelica-*.jar                            # Современный рендеринг и GUI опций (Angelica)
+│   ├── +unimixins-all-1.7.10-*.jar               # Миксины для Forge 1.7.10 (UniMixins) [Обязательно]
+│   ├── angelica-*.jar                            # Графический движок и GUI опций (Angelica) [Крайне рекомендуется]
+│   ├── backhand-*.jar                            # Бэкпорт второй руки (Backhand) [Крайне рекомендуется]
+│   ├── lwjgl3ify-*.jar                           # LWJGL 3 бэкенд и современный инпут (lwjgl3ify) [Рекомендуется]
 │   ├── gtnhlib-*.jar                             # Утилиты GTNHLib
 │   └── hodgepodge-*.jar                          # Hodgepodge (патчи, фиксы, бэкпорты)
+├── logo.png                                      # Логотип мода (2500x2500)
 ├── src/main/
 │   ├── java/com/marrybye/combatbackport/
 │   │   ├── CombatBackport.java                   # Главный класс мода (@Mod)
@@ -63,6 +66,7 @@ combat-backport/
 │   │       ├── PacketSweepAttack.java            # Пакет спавна визуального эффекта свипа
 │   │       └── PacketResetCooldown.java          # Пакет сброса КД на сервере при промахе
 │   └── resources/
+│       ├── logo.png                              # Логотип мода для Forge Mod List
 │       ├── mcmod.info                            # Метаданные мода для FML
 │       ├── mixins.combatbackport.json            # Конфигурация UniMixins
 │       └── assets/combatbackport/
@@ -70,6 +74,7 @@ combat-backport/
 │           ├── sounds.json                       # Регистрация звуков свип-атаки
 │           ├── sounds/player/attack/sweep*.ogg   # Аутентичные звуковые файлы атаки
 │           └── textures/
+│               ├── gui/logo.png                  # Логотип в ресурсах мода
 │               ├── gui/crosshair_*.png           # Текстуры индикатора у прицела (bg, progress, full)
 │               ├── gui/hotbar_*.png              # Текстуры индикатора у хотбара (bg, progress)
 │               └── particle/sweep_*.png          # Покадровая анимация sweep (8 кадров)
@@ -78,6 +83,22 @@ combat-backport/
 ├── gradle.properties                             # Настройки мода (modId, modName, modGroup, mixins)
 └── README.md                                     # Пользовательское описание мода
 ```
+
+---
+
+## 🧩 Внешние зависимости и оптимизация совместимости (Compatibility Architecture)
+
+| Зависимость | Статус | Требования к разработке |
+| :--- | :--- | :--- |
+| **UniMixins** | **Обязательная** | Обеспечивает интеграцию Mixin 0.8.7. Все миксины мода регистрируются в `mixins.combatbackport.json`. |
+| **Angelica** | **Крайне рекомендуется** (опционально) | Графический движок Sodium для 1.7.10. Прямой доступ к классам Angelica разрешен **только** через изоляцию (`AngelicaIntegration.java`) с проверкой `Loader.isModLoaded("angelica")` либо через late-mixins, чтобы избежать `ClassNotFoundException` при отсутствии мода. |
+| **Backhand** | **Крайне рекомендуется** (опционально) | Бэкпорт второй руки (offhand). При реализации анимаций первого лица (`ItemRenderer`), расчетов кулдаунов и обработке кликов учитывать состояние оффхенда, не создавая жесткой зависимости на классы Backhand в рантайме. |
+| **lwjgl3ify** | **Рекомендуется** (опционально) | Современный LWJGL 3, сырой ввод и управление окном. Тестировать отзывчивость кулдауна при высоком FPS и частоте опроса мыши. |
+| **Tinkers' Construct** | Совместимость | Расчет скорости атаки и базового урона для всех составных инструментов и оружия. |
+| **Hodgepodge & GTNHLib** | Совместимость | Общие оптимизации и фиксы платформы GTNH. |
+
+> [!IMPORTANT]
+> **Принцип мягкой совместимости (Soft-Dependencies):** Мод обязан оставаться полностью работоспособным и компилироваться (`./gradlew build`) как в полной сборке с Angelica, Backhand и lwjgl3ify, так и на «голом» ванильном Minecraft 1.7.10 с чистым Forge и UniMixins. Любые интеграции должны быть мягкими (soft-dependent).
 
 ---
 

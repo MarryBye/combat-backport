@@ -69,7 +69,12 @@ public abstract class MixinItemRenderer {
 
         float targetProgress = 0.0F;
         if (sameItem) {
-            if (Config.enableAttackCooldown && Config.enableItemReequipAnimation && player instanceof ICombatPlayer) {
+            boolean isMainHandRenderer = (this.mc.entityRenderer != null
+                && (Object) this == this.mc.entityRenderer.itemRenderer);
+
+            if (isMainHandRenderer && Config.enableAttackCooldown
+                && Config.enableItemReequipAnimation
+                && player instanceof ICombatPlayer) {
                 float charge = ((ICombatPlayer) player).getCooledAttackStrength(1.0F);
                 targetProgress = charge * charge * charge;
             } else {

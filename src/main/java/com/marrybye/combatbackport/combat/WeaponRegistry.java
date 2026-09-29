@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
@@ -24,6 +25,7 @@ import cpw.mods.fml.common.registry.GameRegistry;
 public class WeaponRegistry {
 
     public static final float BASE_ATTACK_SPEED = 4.0F; // Hand / generic speed (5 ticks cooldown = 0.25s)
+    public static final UUID ITEM_MODIFIER_UUID = UUID.fromString("CB3F55D3-645C-4F38-A497-9C13A33DB5CF");
 
     private static final Map<Item, Float> CACHED_SPEEDS = new HashMap<>();
     private static final Map<Item, Boolean> CACHED_SWEEP = new HashMap<>();
@@ -71,16 +73,19 @@ public class WeaponRegistry {
             return 1.6F;
         }
 
-        // Standard Vanilla Axes
+        // Standard Vanilla & Modded Axes
         if (item instanceof ItemAxe) {
             ToolMaterial mat = getToolMaterial(item);
             if (mat == ToolMaterial.WOOD || mat == ToolMaterial.STONE) {
                 return 0.8F;
             } else if (mat == ToolMaterial.IRON) {
                 return 0.9F;
-            } else if (mat == ToolMaterial.EMERALD || mat == ToolMaterial.GOLD) { // EMERALD is Diamond in 1.7.10
-                return 1.0F;
-            }
+            } else if (mat == ToolMaterial.EMERALD || mat == ToolMaterial.GOLD
+                || (mat != null && mat.name()
+                    .toLowerCase()
+                    .contains("netherite"))) {
+                        return 1.0F;
+                    }
             return 0.9F;
         }
 
@@ -101,9 +106,11 @@ public class WeaponRegistry {
                 return 1.0F;
             } else if (mat == ToolMaterial.IRON) {
                 return 2.0F;
-            } else if (mat == ToolMaterial.EMERALD) {
-                return 4.0F;
-            }
+            } else if (mat == ToolMaterial.EMERALD || (mat != null && mat.name()
+                .toLowerCase()
+                .contains("netherite"))) {
+                    return 4.0F;
+                }
             return 2.0F;
         }
 
@@ -183,6 +190,27 @@ public class WeaponRegistry {
         }
 
         return BASE_ATTACK_SPEED;
+    }
+
+    /**
+     * Determines whether the given item is an axe (vanilla or modded).
+     */
+    public static boolean isAxe(ItemStack stack) {
+        if (stack == null || stack.getItem() == null) {
+            return false;
+        }
+        Item item = stack.getItem();
+        if (item instanceof ItemAxe) {
+            return true;
+        }
+        if (item.getToolClasses(stack) != null && item.getToolClasses(stack)
+            .contains("axe")) {
+            return true;
+        }
+        String name = item.getClass()
+            .getSimpleName()
+            .toLowerCase();
+        return name.contains("axe") && !name.contains("pickaxe");
     }
 
     /**
@@ -352,5 +380,80 @@ public class WeaponRegistry {
             } catch (Exception ignored) {}
         }
         return ToolMaterial.IRON;
+    }
+
+    public static boolean isRebalanceEligible(Item item) {
+        if (item == null) {
+            return false;
+        }
+        if (item instanceof ItemSword || item instanceof ItemAxe
+            || item instanceof ItemPickaxe
+            || item instanceof ItemSpade) {
+            return true;
+        }
+        String regName = getItemRegistryName(item);
+        if (regName != null && CUSTOM_DAMAGES.containsKey(regName)) {
+            return true;
+        }
+        return false;
+    }
+
+    public static double getRebalancedDamage(Item item, ItemStack stack) {
+        if (item == null) {
+            return -1.0;
+        }
+
+        String regName = getItemRegistryName(item);
+        if (regName != null && CUSTOM_DAMAGES.containsKey(regName)) {
+            return Math.max(0.0, (double) CUSTOM_DAMAGES.get(regName) - 1.0);
+        }
+
+        ToolMaterial mat = getToolMaterial(item);
+
+        if (item instanceof ItemSword) {
+            if (mat == ToolMaterial.WOOD || mat == ToolMaterial.GOLD) return 3.0; // Total 4.0
+            if (mat == ToolMaterial.STONE) return 4.0; // Total 5.0
+            if (mat == ToolMaterial.IRON) return 5.0; // Total 6.0
+            if (mat == ToolMaterial.EMERALD) return 6.0; // Total 7.0
+            if (mat != null && mat.name()
+                .toLowerCase()
+                .contains("netherite")) return 7.0; // Total 8.0
+            return 3.0 + (mat != null ? (double) mat.getDamageVsEntity() : 2.0);
+        }
+
+        if (item instanceof ItemAxe) {
+            if (mat == ToolMaterial.WOOD || mat == ToolMaterial.GOLD) return 6.0; // Total 7.0
+            if (mat == ToolMaterial.STONE) return 8.0; // Total 9.0
+            if (mat == ToolMaterial.IRON) return 8.0; // Total 9.0
+            if (mat == ToolMaterial.EMERALD) return 8.0; // Total 9.0
+            if (mat != null && mat.name()
+                .toLowerCase()
+                .contains("netherite")) return 9.0; // Total 10.0
+            return Math.max(6.0, 5.0 + (mat != null ? (double) mat.getDamageVsEntity() : 2.0));
+        }
+
+        if (item instanceof ItemPickaxe) {
+            if (mat == ToolMaterial.WOOD || mat == ToolMaterial.GOLD) return 1.0; // Total 2.0
+            if (mat == ToolMaterial.STONE) return 2.0; // Total 3.0
+            if (mat == ToolMaterial.IRON) return 3.0; // Total 4.0
+            if (mat == ToolMaterial.EMERALD) return 4.0; // Total 5.0
+            if (mat != null && mat.name()
+                .toLowerCase()
+                .contains("netherite")) return 5.0; // Total 6.0
+            return 1.0 + (mat != null ? (double) mat.getDamageVsEntity() : 2.0);
+        }
+
+        if (item instanceof ItemSpade) {
+            if (mat == ToolMaterial.WOOD || mat == ToolMaterial.GOLD) return 1.5; // Total 2.5
+            if (mat == ToolMaterial.STONE) return 2.5; // Total 3.5
+            if (mat == ToolMaterial.IRON) return 3.5; // Total 4.5
+            if (mat == ToolMaterial.EMERALD) return 4.5; // Total 5.5
+            if (mat != null && mat.name()
+                .toLowerCase()
+                .contains("netherite")) return 5.5; // Total 6.5
+            return 1.5 + (mat != null ? (double) mat.getDamageVsEntity() : 2.0);
+        }
+
+        return -1.0;
     }
 }

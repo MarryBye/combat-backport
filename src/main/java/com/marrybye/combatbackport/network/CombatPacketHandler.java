@@ -13,5 +13,7 @@ public class CombatPacketHandler {
     public static void init() {
         INSTANCE.registerMessage(PacketSweepAttack.Handler.class, PacketSweepAttack.class, packetId++, Side.CLIENT);
         INSTANCE.registerMessage(PacketResetCooldown.Handler.class, PacketResetCooldown.class, packetId++, Side.SERVER);
+        INSTANCE
+            .registerMessage(PacketShieldCooldown.Handler.class, PacketShieldCooldown.class, packetId++, Side.CLIENT);
     }
 }

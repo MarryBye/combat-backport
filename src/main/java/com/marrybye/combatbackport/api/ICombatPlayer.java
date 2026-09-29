@@ -32,4 +32,14 @@ public interface ICombatPlayer {
      * Gets the cooldown period in ticks for the currently held item.
      */
     float getAttackCooldownPeriod();
+
+    /**
+     * Gets remaining shield cooldown in ticks (when disabled by axe).
+     */
+    int getShieldCooldown();
+
+    /**
+     * Sets remaining shield cooldown in ticks.
+     */
+    void setShieldCooldown(int ticks);
 }

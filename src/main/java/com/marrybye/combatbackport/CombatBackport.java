@@ -14,11 +14,16 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
     modid = CombatBackport.MODID,
     version = Tags.VERSION,
     name = "Combat Backport",
-    acceptedMinecraftVersions = "[1.7.10]")
+    acceptedMinecraftVersions = "[1.7.10]",
+    dependencies = "after:angelica;after:backhand")
 public class CombatBackport {
 
     public static final String MODID = "combatbackport";
     public static final Logger LOG = LogManager.getLogger(MODID);
+
+    public static com.marrybye.combatbackport.combat.enchantment.EnchantmentSweepingEdge sweepingEdgeEnchantment;
+    public static com.marrybye.combatbackport.combat.enchantment.EnchantmentMending mendingEnchantment;
+    public static com.marrybye.combatbackport.combat.item.ItemShield shield;
 
     @SidedProxy(
         clientSide = "com.marrybye.combatbackport.ClientProxy",

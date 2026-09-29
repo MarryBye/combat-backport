@@ -23,6 +23,19 @@ public class Config {
     public static boolean enableItemSwitchCooldown = true;
     public static boolean enableItemReequipAnimation = true;
 
+    // 1.9+ Rebalance Mechanics
+    public static boolean enableWeaponDamageRebalance = true;
+    public static boolean enableModernArmorSystem = true;
+    public static boolean disableSwordBlocking = true;
+    public static boolean enableModernSharpness = true;
+    public static boolean enableModernProtection = true;
+    public static boolean enableSweepingEdgeEnchantment = true;
+    public static int sweepingEdgeEnchantmentId = 74;
+    public static boolean enableShield = true;
+    public static boolean enableMendingEnchantment = true;
+    public static int mendingEnchantmentId = 75;
+    public static boolean enableModernHungerRegen = true;
+
     // Custom items configuration
     public static String[] customWeaponSpeeds = new String[] {
         // "minecraft:diamond_sword=1.6",
@@ -89,6 +102,83 @@ public class Config {
             "client",
             enableItemReequipAnimation,
             "Enable modern 1.9+ item re-equip rising animation based on attack cooldown.");
+
+        enableWeaponDamageRebalance = configuration.getBoolean(
+            "enableWeaponDamageRebalance",
+            "combat",
+            enableWeaponDamageRebalance,
+            "Rebalance weapons and tools damage according to Minecraft 1.9+ stats.");
+
+        enableModernArmorSystem = configuration.getBoolean(
+            "enableModernArmorSystem",
+            "combat",
+            enableModernArmorSystem,
+            "Enable modern 1.9+ armor calculation formula with damage diminishing returns and diamond armor toughness.");
+
+        disableSwordBlocking = configuration.getBoolean(
+            "disableSwordBlocking",
+            "combat",
+            disableSwordBlocking,
+            "Disable sword blocking on right click (1.9+ combat style).");
+
+        enableModernSharpness = configuration.getBoolean(
+            "enableModernSharpness",
+            "combat",
+            enableModernSharpness,
+            "Update Sharpness enchantment to 1.9+ (+1.0 at level 1, +0.5 per additional level).");
+
+        enableModernProtection = configuration.getBoolean(
+            "enableModernProtection",
+            "combat",
+            enableModernProtection,
+            "Update Protection enchantment to 1.9+ linear EPF without RNG.");
+
+        enableSweepingEdgeEnchantment = configuration.getBoolean(
+            "enableSweepingEdgeEnchantment",
+            "enchantments",
+            enableSweepingEdgeEnchantment,
+            "Enable Sweeping Edge enchantment (boosts sweep attack damage).");
+
+        int maxEnchantId = 255;
+        try {
+            if (net.minecraft.enchantment.Enchantment.enchantmentsList != null) {
+                maxEnchantId = Math.max(255, net.minecraft.enchantment.Enchantment.enchantmentsList.length - 1);
+            }
+        } catch (Throwable ignored) {}
+
+        sweepingEdgeEnchantmentId = configuration.getInt(
+            "sweepingEdgeEnchantmentId",
+            "enchantments",
+            sweepingEdgeEnchantmentId,
+            0,
+            maxEnchantId,
+            "Enchantment ID for Sweeping Edge. If this ID is already occupied by another mod or invalid, Combat Backport will automatically reassign it to the next available free ID and notify in the in-game chat.");
+
+        enableMendingEnchantment = configuration.getBoolean(
+            "enableMendingEnchantment",
+            "enchantments",
+            enableMendingEnchantment,
+            "Enable Mending enchantment (repairs damaged items when collecting XP).");
+
+        mendingEnchantmentId = configuration.getInt(
+            "mendingEnchantmentId",
+            "enchantments",
+            mendingEnchantmentId,
+            0,
+            maxEnchantId,
+            "Enchantment ID for Mending. If this ID is already occupied by another mod or invalid, Combat Backport will automatically reassign it to the next available free ID and notify in the in-game chat.");
+
+        enableShield = configuration.getBoolean(
+            "enableShield",
+            "combat",
+            enableShield,
+            "Enable modern 1.9+ shield item, blocking, axe disabling, and planks repair.");
+
+        enableModernHungerRegen = configuration.getBoolean(
+            "enableModernHungerRegen",
+            "combat",
+            enableModernHungerRegen,
+            "Enable modern 1.9+ rapid health regeneration when saturation is high and hunger bar is full.");
 
         customWeaponSpeeds = configuration.getStringList(
             "customWeaponSpeeds",
