@@ -165,14 +165,14 @@ public class ShieldItemRenderer implements IItemRenderer {
                 // Authentic 1.9+ firstperson blocking pose:
                 // Held directly in front of the player, lowered so it doesn't block the crosshair, facing straight
                 // forward
-                GL11.glTranslatef(-1.20F, 0.12F, 0.25F);
+                GL11.glTranslatef(-1.20F, -0.22F, 0.25F);
                 GL11.glRotatef(-3.0F, 0.0F, 0.0F, 1.0F);
                 GL11.glRotatef(180.0F, 0.0F, 0.0F, 1.0F);
                 GL11.glScalef(2.5F, 2.5F, 2.5F);
             } else {
                 // Authentic 1.9+ firstperson idle pose:
                 // Lowered down in hand, facing straight forward towards the world (not heavily tilted)
-                GL11.glTranslatef(-0.12F, -0.32F, 0.12F);
+                GL11.glTranslatef(-0.12F, -0.55F, 0.12F);
                 GL11.glRotatef(2.0F, 1.0F, 0.0F, 0.0F);
                 GL11.glRotatef(4.0F, 0.0F, 1.0F, 0.0F);
                 GL11.glRotatef(184.0F, 0.0F, 0.0F, 1.0F);
