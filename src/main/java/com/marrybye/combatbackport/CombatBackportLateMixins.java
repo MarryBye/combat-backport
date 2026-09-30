@@ -1,4 +1,4 @@
-package com.marrybye.combatbackport.mixins;
+package com.marrybye.combatbackport;
 
 import java.util.ArrayList;
 import java.util.List;
