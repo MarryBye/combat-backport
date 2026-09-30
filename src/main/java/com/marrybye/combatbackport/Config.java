@@ -32,6 +32,7 @@ public class Config {
     public static boolean enableSweepingEdgeEnchantment = true;
     public static int sweepingEdgeEnchantmentId = 74;
     public static boolean enableShield = true;
+    public static boolean enableShieldTuckAway = true;
     public static boolean enableMendingEnchantment = true;
     public static int mendingEnchantmentId = 75;
     public static boolean enableModernHungerRegen = true;
@@ -48,6 +49,9 @@ public class Config {
     public static String[] customSweepItems = new String[] {
         // "minecraft:iron_sword",
     };
+
+    public static String[] customTwoHandedWeapons = new String[0];
+    public static String[] customRangedWeapons = new String[0];
 
     public static void synchronizeConfiguration(File configFile) {
         if (configuration == null) {
@@ -198,6 +202,24 @@ public class Config {
             customSweepItems,
             "Items forced to enable sweep attacks in format 'modid:item_name'.");
 
+        enableShieldTuckAway = configuration.getBoolean(
+            "enableShieldTuckAway",
+            "shield",
+            enableShieldTuckAway,
+            "Tuck away (lower down and disable) offhand shield when holding or charging two-handed or ranged weapons.");
+
+        customTwoHandedWeapons = configuration.getStringList(
+            "customTwoHandedWeapons",
+            "shield",
+            customTwoHandedWeapons,
+            "Registry names of custom two-handed weapons in format 'modid:item_name'.");
+
+        customRangedWeapons = configuration.getStringList(
+            "customRangedWeapons",
+            "shield",
+            customRangedWeapons,
+            "Registry names of custom ranged weapons in format 'modid:item_name'.");
+
         // Parse custom weapon speeds
         WeaponRegistry.clearCache();
         WeaponRegistry.CUSTOM_SPEEDS.clear();
@@ -229,6 +251,9 @@ public class Config {
                 WeaponRegistry.CUSTOM_SWEEP_ITEMS.add(entry.trim());
             }
         }
+
+        // Initialize two-handed and ranged compat lists
+        com.marrybye.combatbackport.compat.TwoHandedCompat.init(customTwoHandedWeapons, customRangedWeapons);
 
         if (configuration.hasChanged()) {
             configuration.save();

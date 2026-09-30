@@ -12,8 +12,6 @@ import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 import net.minecraftforge.oredict.OreDictionary;
 
-import com.marrybye.combatbackport.api.ICombatPlayer;
-
 public class ItemShield extends Item {
 
     public ItemShield() {
@@ -36,10 +34,8 @@ public class ItemShield extends Item {
 
     @Override
     public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
-        if (player instanceof ICombatPlayer) {
-            if (((ICombatPlayer) player).getShieldCooldown() > 0) {
-                return stack;
-            }
+        if (!com.marrybye.combatbackport.compat.TwoHandedCompat.canUseShield(player, stack)) {
+            return stack;
         }
         player.setItemInUse(stack, this.getMaxItemUseDuration(stack));
         return stack;

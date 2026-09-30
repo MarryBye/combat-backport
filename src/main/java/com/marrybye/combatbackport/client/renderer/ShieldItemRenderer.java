@@ -14,6 +14,7 @@ import org.lwjgl.opengl.GL12;
 
 import com.marrybye.combatbackport.client.model.ModelShield;
 import com.marrybye.combatbackport.combat.item.ItemShield;
+import com.marrybye.combatbackport.compat.TwoHandedCompat;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -27,6 +28,30 @@ public class ShieldItemRenderer implements IItemRenderer {
     private static final ResourceLocation SHIELD_NOPATTERN_TEXTURE = new ResourceLocation(
         "combatbackport",
         "textures/entity/shield_base_nopattern.png");
+
+    private static float tuckProgress = 0.0F;
+    private static long lastTuckUpdateTime = 0;
+
+    private static void updateTuckProgress(boolean shouldTuck) {
+        long now = System.currentTimeMillis();
+        if (lastTuckUpdateTime == 0) {
+            lastTuckUpdateTime = now;
+        }
+        long elapsed = now - lastTuckUpdateTime;
+        lastTuckUpdateTime = now;
+        if (elapsed > 500) {
+            elapsed = 120;
+        }
+        float dt = (float) elapsed / 120.0F;
+        if (dt > 1.0F) dt = 1.0F;
+        if (dt < 0.0F) dt = 0.0F;
+
+        if (shouldTuck) {
+            tuckProgress = Math.min(1.0F, tuckProgress + dt);
+        } else {
+            tuckProgress = Math.max(0.0F, tuckProgress - dt);
+        }
+    }
 
     private final ModelShield model = new ModelShield();
 
@@ -154,11 +179,30 @@ public class ShieldItemRenderer implements IItemRenderer {
                 ? (EntityLivingBase) data[1]
                 : Minecraft.getMinecraft().thePlayer;
             boolean isBlocking = false;
+            boolean isOffhand = false;
+            ItemStack mainHand = null;
             if (entity instanceof EntityPlayer) {
                 EntityPlayer player = (EntityPlayer) entity;
                 isBlocking = player.isUsingItem()
                     && (player.getItemInUse() == item || (player.getItemInUse() != null && player.getItemInUse()
                         .getItem() instanceof ItemShield));
+                mainHand = TwoHandedCompat.getMainHandItem(player);
+                isOffhand = TwoHandedCompat.isOffhand(player, item);
+            }
+
+            // Shield tuck away animation (when wielding two-handed or ranged weapons in main hand)
+            if (isOffhand && entity instanceof EntityPlayer) {
+                boolean shouldTuck = TwoHandedCompat.shouldTuckAwayShield((EntityPlayer) entity, mainHand);
+                updateTuckProgress(shouldTuck);
+                if (tuckProgress >= 1.0F) {
+                    GL11.glPopMatrix();
+                    return;
+                }
+                if (tuckProgress > 0.0F) {
+                    GL11.glTranslatef(0.0F, -2.5F * tuckProgress, 0.0F);
+                }
+            } else {
+                tuckProgress = 0.0F;
             }
 
             if (isBlocking) {
@@ -202,6 +246,12 @@ public class ShieldItemRenderer implements IItemRenderer {
             boolean isBlocking = false;
             if (entity instanceof EntityPlayer) {
                 EntityPlayer player = (EntityPlayer) entity;
+                ItemStack main = TwoHandedCompat.getMainHandItem(player);
+                if (TwoHandedCompat.isOffhand(player, item) && TwoHandedCompat.shouldTuckAwayShield(player, main)) {
+                    // Skip rendering shield on player when two-handed or ranged weapon is held
+                    GL11.glPopMatrix();
+                    return;
+                }
                 isBlocking = player.isUsingItem()
                     && (player.getItemInUse() == item || (player.getItemInUse() != null && player.getItemInUse()
                         .getItem() instanceof ItemShield));

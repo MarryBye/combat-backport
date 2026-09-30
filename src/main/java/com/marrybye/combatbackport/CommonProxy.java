@@ -29,7 +29,6 @@ import com.marrybye.combatbackport.combat.recipe.RecipeShieldDecorate;
 import com.marrybye.combatbackport.network.CombatPacketHandler;
 
 import cpw.mods.fml.common.FMLCommonHandler;
-import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -328,13 +327,6 @@ public class CommonProxy {
                 "after:minecraft:shapeless");
             GameRegistry.addRecipe(new RecipeShieldDecorate());
 
-            if (Loader.isModLoaded("backhand")) {
-                try {
-                    xonin.backhand.api.core.BackhandUtils.addOffhandPriorityItem(ItemShield.class);
-                } catch (Throwable t) {
-                    CombatBackport.LOG.warn("Failed to register Shield with Backhand offhandPriorityItems", t);
-                }
-            }
         }
 
         if (Config.enableMendingEnchantment && CombatBackport.mendingEnchantment != null
