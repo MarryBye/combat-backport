@@ -49,4 +49,28 @@ public abstract class MixinItemStack {
             }
         }
     }
+
+    @Inject(method = "getItemUseAction", at = @At("HEAD"), cancellable = true)
+    private void combatbackport$getItemUseAction(CallbackInfoReturnable<net.minecraft.item.EnumAction> cir) {
+        if (Config.disableSwordBlocking) {
+            Item item = this.getItem();
+            if (item != null && !(item instanceof com.marrybye.combatbackport.combat.item.ItemShield)) {
+                if (item.getItemUseAction((ItemStack) (Object) this) == net.minecraft.item.EnumAction.block) {
+                    cir.setReturnValue(net.minecraft.item.EnumAction.none);
+                }
+            }
+        }
+    }
+
+    @Inject(method = "getMaxItemUseDuration", at = @At("HEAD"), cancellable = true)
+    private void combatbackport$getMaxItemUseDuration(CallbackInfoReturnable<Integer> cir) {
+        if (Config.disableSwordBlocking) {
+            Item item = this.getItem();
+            if (item != null && !(item instanceof com.marrybye.combatbackport.combat.item.ItemShield)) {
+                if (item.getItemUseAction((ItemStack) (Object) this) == net.minecraft.item.EnumAction.block) {
+                    cir.setReturnValue(0);
+                }
+            }
+        }
+    }
 }

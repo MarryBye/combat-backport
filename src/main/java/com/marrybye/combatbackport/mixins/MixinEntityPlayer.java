@@ -301,4 +301,14 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
     public void setAttackScalingHandled(boolean handled) {
         this.combatbackport$attackScalingHandled = handled;
     }
+
+    @Inject(method = "setItemInUse", at = @At("HEAD"), cancellable = true)
+    private void combatbackport$preventSwordBlockInUse(ItemStack stack, int duration, CallbackInfo ci) {
+        if (Config.disableSwordBlocking && stack != null && stack.getItem() != null) {
+            if (!(stack.getItem() instanceof com.marrybye.combatbackport.combat.item.ItemShield) && stack.getItem()
+                .getItemUseAction(stack) == net.minecraft.item.EnumAction.block) {
+                ci.cancel();
+            }
+        }
+    }
 }

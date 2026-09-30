@@ -14,7 +14,7 @@ import com.marrybye.combatbackport.Config;
 
 import tconstruct.library.tools.Weapon;
 
-@Mixin(value = Weapon.class, remap = false)
+@Mixin(Weapon.class)
 public abstract class MixinWeapon {
 
     @Inject(method = "getItemUseAction", at = @At("HEAD"), cancellable = true)
