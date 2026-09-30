@@ -73,6 +73,20 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
             this.combatbackport$shieldCooldown--;
         }
         this.combatbackport$checkSlotChange();
+
+        if (this.isPotionActive(Potion.digSlowdown)) {
+            ItemStack held = this.getHeldItem();
+            if (held != null && held.getItem() != null
+                && held.getItem()
+                    .getClass()
+                    .getSimpleName()
+                    .contains("Cleaver")) {
+                PotionEffect effect = this.getActivePotionEffect(Potion.digSlowdown);
+                if (effect != null && effect.getDuration() <= 20) {
+                    this.removePotionEffect(Potion.digSlowdown.id);
+                }
+            }
+        }
     }
 
     @Override

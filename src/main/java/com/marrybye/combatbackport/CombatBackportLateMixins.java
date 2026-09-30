@@ -21,6 +21,7 @@ public class CombatBackportLateMixins implements ILateMixinLoader {
         if (loadedMods.contains("TConstruct")) {
             mixins.add("ticon.MixinAbilityHelper");
             mixins.add("ticon.MixinCleaver");
+            mixins.add("ticon.MixinWeapon");
         }
         return mixins;
     }

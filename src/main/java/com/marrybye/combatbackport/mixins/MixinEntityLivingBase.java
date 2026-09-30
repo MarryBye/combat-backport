@@ -1,6 +1,7 @@
 package com.marrybye.combatbackport.mixins;
 
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.MathHelper;
 
@@ -38,6 +39,23 @@ public abstract class MixinEntityLivingBase {
             float f = 2.0F + toughness / 4.0F;
             float f1 = MathHelper.clamp_float(armor - damage / f, armor * 0.2F, 20.0F);
             cir.setReturnValue(damage * (1.0F - f1 / 25.0F));
+        }
+    }
+
+    @Inject(method = "addPotionEffect", at = @At("HEAD"), cancellable = true)
+    private void combatbackport$suppressCleaverFatigue(net.minecraft.potion.PotionEffect effect,
+        org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (effect != null && effect.getPotionID() == net.minecraft.potion.Potion.digSlowdown.id
+            && (Object) this instanceof net.minecraft.entity.player.EntityPlayer) {
+            net.minecraft.entity.player.EntityPlayer player = (net.minecraft.entity.player.EntityPlayer) (Object) this;
+            ItemStack held = player.getHeldItem();
+            if (held != null && held.getItem() != null
+                && held.getItem()
+                    .getClass()
+                    .getSimpleName()
+                    .contains("Cleaver")) {
+                ci.cancel();
+            }
         }
     }
 }

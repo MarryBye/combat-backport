@@ -526,6 +526,11 @@ public class TwoHandedCompat {
                 return false;
             }
 
+            // Mainhand weapon or item has an active right-click ability: mainhand takes priority
+            if (hasRightClickAbility(mainHand)) {
+                return false;
+            }
+
             // Actively using mainhand item: cannot block
             if (player.isUsingItem() && player.getItemInUse() != shieldStack) {
                 return false;
@@ -538,6 +543,56 @@ public class TwoHandedCompat {
         }
 
         return true;
+    }
+
+    /**
+     * Checks if the given main-hand item has an active right-click ability or action
+     * that should take priority over offhand shield blocking.
+     */
+    public static boolean hasRightClickAbility(ItemStack stack) {
+        if (stack == null || stack.getItem() == null) {
+            return false;
+        }
+        Item item = stack.getItem();
+
+        // TiC weapons with special right-click abilities
+        String simpleName = item.getClass()
+            .getSimpleName();
+        if (simpleName.equalsIgnoreCase("Longsword") || simpleName.equalsIgnoreCase("Battleaxe")
+            || simpleName.equalsIgnoreCase("Dagger")
+            || simpleName.equalsIgnoreCase("Rapier")
+            || simpleName.equalsIgnoreCase("FryingPan")) {
+            return true;
+        }
+
+        // Ranged weapons
+        if (isRangedWeapon(stack)) {
+            return true;
+        }
+
+        // Throwables, tools, and interactive vanilla items
+        if (item instanceof net.minecraft.item.ItemEnderPearl || item instanceof net.minecraft.item.ItemExpBottle
+            || item instanceof net.minecraft.item.ItemSnowball
+            || item instanceof net.minecraft.item.ItemEgg
+            || item instanceof net.minecraft.item.ItemFishingRod
+            || item instanceof net.minecraft.item.ItemFlintAndSteel
+            || item instanceof net.minecraft.item.ItemHoe
+            || item instanceof net.minecraft.item.ItemShears
+            || item instanceof net.minecraft.item.ItemBucket
+            || item instanceof net.minecraft.item.ItemLead
+            || item instanceof net.minecraft.item.ItemNameTag
+            || item instanceof net.minecraft.item.ItemFirework) {
+            return true;
+        }
+
+        try {
+            EnumAction action = item.getItemUseAction(stack);
+            if (action == EnumAction.bow) {
+                return true;
+            }
+        } catch (Throwable ignored) {}
+
+        return false;
     }
 
     /**
