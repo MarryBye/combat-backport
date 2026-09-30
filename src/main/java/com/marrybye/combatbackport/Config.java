@@ -39,7 +39,7 @@ public class Config {
     public static int fastRegenTickInterval = 10;
     public static int normalRegenTickInterval = 80;
     public static int starveTickInterval = 80;
-    public static float fastRegenMaxExhaustion = 6.0F;
+    public static float fastRegenExhaustion = 6.0F;
     public static float normalRegenExhaustion = 6.0F;
     public static int fastRegenMinFood = 20;
     public static int normalRegenMinFood = 18;
@@ -215,13 +215,13 @@ public class Config {
             1000,
             "Tick interval for starvation damage when hunger is empty. Vanilla is 80 ticks (4.0s).");
 
-        fastRegenMaxExhaustion = configuration.getFloat(
-            "fastRegenMaxExhaustion",
+        fastRegenExhaustion = configuration.getFloat(
+            "fastRegenExhaustion",
             "combat",
-            fastRegenMaxExhaustion,
+            fastRegenExhaustion,
             0.1F,
             40.0F,
-            "Exhaustion drained per full point of rapid regeneration. Vanilla 1.9+ is 6.0.");
+            "Exhaustion drained per 1 HP of rapid regeneration. Vanilla 1.9+ is 6.0.");
 
         normalRegenExhaustion = configuration.getFloat(
             "normalRegenExhaustion",

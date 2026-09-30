@@ -91,13 +91,11 @@ public abstract class MixinFoodStats {
         }
 
         if (currentMode == 1) {
-            // Mode 1: Rapid saturated regeneration
+            // Mode 1: Rapid saturated regeneration (1 HP every 10 ticks = 2 HP/s)
             ++this.foodTimer;
             if (this.foodTimer >= Config.fastRegenTickInterval) {
-                float maxExhaustion = Math.max(Config.fastRegenMaxExhaustion, 0.1F);
-                float f = Math.min(this.foodSaturationLevel, maxExhaustion);
-                player.heal(f / maxExhaustion);
-                this.addExhaustion(f);
+                player.heal(1.0F);
+                this.addExhaustion(Config.fastRegenExhaustion);
                 this.foodTimer = 0;
             }
         } else if (currentMode == 2) {
