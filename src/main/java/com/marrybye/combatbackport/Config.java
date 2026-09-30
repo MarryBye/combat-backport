@@ -36,6 +36,13 @@ public class Config {
     public static boolean enableMendingEnchantment = true;
     public static int mendingEnchantmentId = 75;
     public static boolean enableModernHungerRegen = true;
+    public static int fastRegenTickInterval = 10;
+    public static int normalRegenTickInterval = 80;
+    public static int starveTickInterval = 80;
+    public static float fastRegenMaxExhaustion = 6.0F;
+    public static float normalRegenExhaustion = 6.0F;
+    public static int fastRegenMinFood = 20;
+    public static int normalRegenMinFood = 18;
 
     // Custom items configuration
     public static String[] customWeaponSpeeds = new String[] {
@@ -183,6 +190,62 @@ public class Config {
             "combat",
             enableModernHungerRegen,
             "Enable modern 1.9+ rapid health regeneration when saturation is high and hunger bar is full.");
+
+        fastRegenTickInterval = configuration.getInt(
+            "fastRegenTickInterval",
+            "combat",
+            fastRegenTickInterval,
+            1,
+            1000,
+            "Tick interval for rapid saturated regeneration (mode 1). Vanilla 1.9+ is 10 ticks (0.5s).");
+
+        normalRegenTickInterval = configuration.getInt(
+            "normalRegenTickInterval",
+            "combat",
+            normalRegenTickInterval,
+            1,
+            1000,
+            "Tick interval for normal regeneration (mode 2). Vanilla 1.9+ is 80 ticks (4.0s).");
+
+        starveTickInterval = configuration.getInt(
+            "starveTickInterval",
+            "combat",
+            starveTickInterval,
+            1,
+            1000,
+            "Tick interval for starvation damage when hunger is empty. Vanilla is 80 ticks (4.0s).");
+
+        fastRegenMaxExhaustion = configuration.getFloat(
+            "fastRegenMaxExhaustion",
+            "combat",
+            fastRegenMaxExhaustion,
+            0.1F,
+            40.0F,
+            "Exhaustion drained per full point of rapid regeneration. Vanilla 1.9+ is 6.0.");
+
+        normalRegenExhaustion = configuration.getFloat(
+            "normalRegenExhaustion",
+            "combat",
+            normalRegenExhaustion,
+            0.1F,
+            40.0F,
+            "Exhaustion drained per 1 HP of normal regeneration. Vanilla 1.9+ is 6.0.");
+
+        fastRegenMinFood = configuration.getInt(
+            "fastRegenMinFood",
+            "combat",
+            fastRegenMinFood,
+            1,
+            20,
+            "Minimum food level required for rapid saturated regeneration. Vanilla 1.9+ is 20.");
+
+        normalRegenMinFood = configuration.getInt(
+            "normalRegenMinFood",
+            "combat",
+            normalRegenMinFood,
+            1,
+            20,
+            "Minimum food level required for normal regeneration. Vanilla 1.9+ is 18.");
 
         customWeaponSpeeds = configuration.getStringList(
             "customWeaponSpeeds",
