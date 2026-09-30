@@ -42,4 +42,14 @@ public interface ICombatPlayer {
      * Sets remaining shield cooldown in ticks.
      */
     void setShieldCooldown(int ticks);
+
+    /**
+     * Whether attack damage scaling was already applied in the current attack sequence.
+     */
+    boolean isAttackScalingHandled();
+
+    /**
+     * Sets whether attack damage scaling was already applied in the current attack sequence.
+     */
+    void setAttackScalingHandled(boolean handled);
 }

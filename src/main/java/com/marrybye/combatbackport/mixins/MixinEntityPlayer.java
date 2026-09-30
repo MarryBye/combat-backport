@@ -145,6 +145,7 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
             return baseDamage;
         }
         float charge = this.getCooledAttackStrength(0.5F);
+        this.combatbackport$attackScalingHandled = true;
         return (double) CombatManager.getScaledDamage((float) baseDamage, charge);
     }
 
@@ -261,6 +262,7 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
     @Inject(method = "attackTargetEntityWithCurrentItem", at = @At("RETURN"))
     private void combatbackport$afterAttack(Entity targetEntity, CallbackInfo ci) {
         this.resetAttackCooldown();
+        this.combatbackport$attackScalingHandled = false;
     }
 
     @Override
@@ -271,5 +273,18 @@ public abstract class MixinEntityPlayer extends EntityLivingBase implements ICom
     @Override
     public void setShieldCooldown(int ticks) {
         this.combatbackport$shieldCooldown = ticks;
+    }
+
+    @Unique
+    private boolean combatbackport$attackScalingHandled = false;
+
+    @Override
+    public boolean isAttackScalingHandled() {
+        return this.combatbackport$attackScalingHandled;
+    }
+
+    @Override
+    public void setAttackScalingHandled(boolean handled) {
+        this.combatbackport$attackScalingHandled = handled;
     }
 }

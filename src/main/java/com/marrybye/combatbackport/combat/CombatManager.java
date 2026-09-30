@@ -18,6 +18,7 @@ import net.minecraft.util.DamageSource;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import com.marrybye.combatbackport.CombatBackport;
 import com.marrybye.combatbackport.Config;
@@ -274,6 +275,31 @@ public class CombatManager {
 
         // Completely negate the blocked damage
         event.setCanceled(true);
+    }
+
+    /**
+     * Fallback damage scaling in LivingHurtEvent for custom weapons from other mods
+     * that bypass EntityPlayer.attackTargetEntityWithCurrentItem.
+     */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onLivingHurt(LivingHurtEvent event) {
+        if (!Config.enableAttackCooldown || !Config.enableDamageScaling) {
+            return;
+        }
+        if (event.source != null && event.source.getEntity() instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) event.source.getEntity();
+            if (player instanceof ICombatPlayer) {
+                ICombatPlayer cp = (ICombatPlayer) player;
+                if (!cp.isAttackScalingHandled() && !event.source.isProjectile()
+                    && !event.source.isMagicDamage()
+                    && !event.source.isExplosion()
+                    && !event.source.isFireDamage()) {
+                    float charge = cp.getCooledAttackStrength(0.5F);
+                    event.ammount = getScaledDamage(event.ammount, charge);
+                    cp.resetAttackCooldown();
+                }
+            }
+        }
     }
 
     /**

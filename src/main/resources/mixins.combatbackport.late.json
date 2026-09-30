@@ -1,0 +1,10 @@
+{
+  "required": false,
+  "minVersion": "0.8.7",
+  "package": "com.marrybye.combatbackport.mixins.late",
+  "refmap": "mixins.combatbackport.refmap.json",
+  "target": "@env(DEFAULT)",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+  ]
+}
